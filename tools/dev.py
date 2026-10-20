@@ -186,6 +186,10 @@ def main():
         if label != "true":
             raise RuntimeError("Refusing to stop an unlabelled container")
         run([DOCKER, "stop", name])
+    elif command == "task14-check":
+        run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Lifecycle"])
+        run([sys.executable, str(ROOT / "tools/dev.py"), "go", "./..."])
+        run([sys.executable, str(ROOT / "tools/dev.py"), "acceptance", "-k", "lifecycle"])
     elif command == "task13-check":
         run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Filament", "tests/php/Templates", "tests/php/Plans"])
         run([sys.executable, str(ROOT / "tools/dev.py"), "acceptance", "-k", "setup_flow"])

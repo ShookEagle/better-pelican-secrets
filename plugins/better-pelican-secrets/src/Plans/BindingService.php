@@ -135,6 +135,9 @@ final class BindingService
                     }
                 }
             }
+            if (app(RuntimeReferences::class)->usesSecret($server, $secretId)) {
+                throw new DomainException('secret_in_use');
+            }
             app(SecretStore::class)->delete($secretId, $actor);
         }, 3);
     }

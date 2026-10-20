@@ -2,6 +2,7 @@
 
 namespace ShookEagle\BetterPelicanSecrets\Providers;
 
+use App\Enums\ServerState;
 use App\Enums\TablerIcon;
 use App\Filament\Admin\Resources\Roles\RoleResource;
 use App\Filament\Admin\Resources\Users\UserResource;
@@ -13,20 +14,29 @@ use App\Models\ServerVariable;
 use App\Models\Subuser;
 use App\Models\User;
 use App\Repositories\Daemon\DaemonServerRepository;
+use App\Services\Helpers\PluginService;
 use App\Services\Servers\GetUserPermissionsService;
 use App\Services\Servers\ServerConfigurationStructureService;
 use App\Services\Servers\StartupModificationService;
 use App\Services\Subusers\SubuserCreationService;
 use App\Services\Subusers\SubuserUpdateService;
 use Filament\Schemas\Schema;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
+use ShookEagle\BetterPelicanSecrets\Console\Commands\PruneSecretAudit;
+use ShookEagle\BetterPelicanSecrets\Console\Commands\PurgeSecretVersions;
+use ShookEagle\BetterPelicanSecrets\Console\Commands\ReencryptSecretVersions;
+use ShookEagle\BetterPelicanSecrets\Console\Commands\RetireIncompleteSetup;
 use ShookEagle\BetterPelicanSecrets\Http\SecretResponse;
+use ShookEagle\BetterPelicanSecrets\Integration\GuardedPluginService;
 use ShookEagle\BetterPelicanSecrets\Node\CompatibleDaemonServerRepository;
 use ShookEagle\BetterPelicanSecrets\Node\NodeCapabilityService;
 use ShookEagle\BetterPelicanSecrets\Node\ReferenceConfigurationService;
 use ShookEagle\BetterPelicanSecrets\Plans\ManagedStartupModificationService;
 use ShookEagle\BetterPelicanSecrets\Plans\ManagedVariableGuard;
+use ShookEagle\BetterPelicanSecrets\Plans\RuntimeReferences;
+use ShookEagle\BetterPelicanSecrets\Plans\ServerLifecycleService;
 use ShookEagle\BetterPelicanSecrets\Secrets\NativeGrantGuard;
 use ShookEagle\BetterPelicanSecrets\Secrets\NativeRoleApiGuard;
 use ShookEagle\BetterPelicanSecrets\Secrets\NativeSubuserCreationService;
@@ -41,6 +51,7 @@ final class BetterPelicanSecretsProvider extends ServiceProvider
 
     public function register(): void
     {
+        $this->app->bind(PluginService::class, GuardedPluginService::class);
         $config = dirname(__DIR__, 2) . '/config/secrets.php';
         $this->mergeConfigFrom($config, 'better-pelican-secrets');
         $this->publishes([$config => config_path('better-pelican-secrets.php')], 'better-pelican-secrets-config');
@@ -58,6 +69,33 @@ final class BetterPelicanSecretsProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->commands([
+            PurgeSecretVersions::class,
+            ReencryptSecretVersions::class,
+            PruneSecretAudit::class,
+            RetireIncompleteSetup::class,
+        ]);
+        $this->callAfterResolving(Schedule::class,
+            fn ($schedule) => $schedule->command('secrets:prune-audit')->daily()->withoutOverlapping());
+        Server::updated(function (Server $server) {
+            $reason = match (true) {
+                $server->wasChanged('node_id') => 'transfer',
+                $server->wasChanged('egg_id') => 'egg',
+                $server->wasChanged('image') => 'image',
+                $server->wasChanged('status') && $server->status === ServerState::RestoringBackup => 'restore',
+                $server->wasChanged('status') && $server->status === ServerState::Installing => 'reinstall',
+                default => null,
+            };
+            if ($reason) {
+                app(ServerLifecycleService::class)->invalidate($server, $reason);
+            }
+        });
+        Server::deleting(fn (Server $server) => app(ServerLifecycleService::class)->delete($server));
+        ServerTransfer::updated(function (ServerTransfer $transfer) {
+            if ($transfer->wasChanged('successful') && $transfer->successful === true) {
+                app(RuntimeReferences::class)->retireSource($transfer->server, $transfer->old_node);
+            }
+        });
         Server::updating(fn (Server $server) => app(NodeCapabilityService::class)->guardServerMove($server));
         ServerTransfer::creating(fn (ServerTransfer $transfer) => app(NodeCapabilityService::class)->guardTransfer($transfer));
         $this->loadRoutesFrom(dirname(__DIR__, 2) . '/routes/node.php');

@@ -31,19 +31,21 @@ return new class extends Migration
             $table->foreign('secret_id')->references('id')->on('bps_secrets')->cascadeOnDelete();
             $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();
         });
-        Schema::create('bps_secret_audit_events', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedInteger('actor_id')->nullable();
-            $table->string('operation', 64);
-            $table->json('metadata');
-            $table->timestamp('created_at');
-            // Audit survives secret, server, or actor deletion.
-        });
+        if (!Schema::hasTable('bps_secret_audit_events')) {
+            Schema::create('bps_secret_audit_events', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedInteger('actor_id')->nullable();
+                $table->string('operation', 64);
+                $table->json('metadata');
+                $table->timestamp('created_at');
+                // Audit survives secret, server, actor deletion, and native uninstall.
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('bps_secret_audit_events');
+        // Audit is independent metadata retained under the configured policy.
         Schema::dropIfExists('bps_secret_versions');
         Schema::dropIfExists('bps_secrets');
     }

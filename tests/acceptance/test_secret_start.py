@@ -10,6 +10,7 @@ ROOT = mount_contract.ROOT
 
 
 class SecretStartTests(unittest.TestCase):
+    go_test_name = "TestSecretStartDockerLifecycleLive"
     run_docker = classmethod(mount_contract.MountContractTests.run_docker.__func__)
 
     @classmethod
@@ -74,7 +75,8 @@ class SecretStartTests(unittest.TestCase):
             "--env", "BPS_LIVE_IMAGE=" + game_image, "--env", "BPS_LIVE_SERVER=" + server,
             "--env", "BPS_PROTOCOL_FIXTURES=/workspace/protocol/fixtures",
             self.go_image, "/workspace/.work/secret-start.test",
-            "-test.run", "^TestSecretStartDockerLifecycleLive$", "-test.v", "-test.timeout", "90s",
+            "-test.run", "^" + self.go_test_name + "$", "-test.v", "-test.timeout", "90s",
         ]
-        result = self.run_docker(*args, timeout=120)
-        self.assertIn(b"--- PASS: TestSecretStartDockerLifecycleLive", result.stdout)
+        result = self.run_docker(*args, timeout=120, check=False)
+        self.assertEqual(0, result.returncode, (result.stdout + result.stderr).decode("utf-8", errors="replace")[-12000:])
+        self.assertIn(("--"+"- PASS: " + self.go_test_name).encode(), result.stdout)

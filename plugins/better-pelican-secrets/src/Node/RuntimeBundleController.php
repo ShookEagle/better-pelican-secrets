@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use ShookEagle\BetterPelicanSecrets\Plans\Models\ApplicationRecord;
 use ShookEagle\BetterPelicanSecrets\Plans\PlanService;
+use ShookEagle\BetterPelicanSecrets\Plans\ServerLifecycleService;
 use ShookEagle\BetterPelicanSecrets\Secrets\SecretStore;
 use Throwable;
 
@@ -39,6 +40,7 @@ final class RuntimeBundleController
                 if (!$node instanceof Node || $node->id !== $server->node_id) {
                     throw new NodeRequestError('forbidden', 403);
                 }
+                app(ServerLifecycleService::class)->assertStartable($server);
                 $plan = $this->plans->snapshot($server, $body['expected_revision']);
                 $issued = ApplicationRecord::query()->where('server_id', $server->id)->where('attempt_id', $body['attempt_id'])->where('kind', 'issued')->first();
                 if ($issued && ($issued->revision !== $plan->revision || $issued->node_id !== $node->id)) {
@@ -80,6 +82,10 @@ final class RuntimeBundleController
             }
             if (in_array($error->getMessage(), ['protocol_invalid', 'protocol_unsupported', 'limit_exceeded'], true)) {
                 return $this->error($error->getMessage(), $error->getMessage() === 'limit_exceeded' ? 503 : 422);
+            }
+
+            if (in_array($error->getMessage(), ['template_invalid', 'secret_missing'], true)) {
+                return $this->error($error->getMessage(), 503);
             }
 
             return $this->error('decryption_failed', 503);

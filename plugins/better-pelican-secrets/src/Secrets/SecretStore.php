@@ -108,6 +108,7 @@ final class SecretStore
             DB::transaction(function () use ($secretId, $actor) {
                 $secret = Secret::query()->lockForUpdate()->findOrFail($secretId);
                 $this->audit->record($actor, 'secret.delete', $this->auditMetadata($secret));
+                Models\SecretGrant::where('server_id', $secret->server_id)->where('secret_id', $secret->id)->delete();
                 $secret->delete();
             }, 3);
         } catch (Throwable) {

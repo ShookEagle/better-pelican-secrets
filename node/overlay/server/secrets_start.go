@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pelican/wings/config"
 	"github.com/pelican/wings/environment"
 	"github.com/pelican/wings/secrets"
 )
@@ -20,8 +21,10 @@ func (s *Server) secretPlan() *secrets.Plan {
 	return s.cfg.Secrets
 }
 func (s *Server) hasSecretPlan() bool {
-	plan := s.secretPlan()
-	return plan != nil && (plan.Revision != "0" || len(plan.Files) > 0 || len(plan.Startup) > 0)
+	s.cfg.mu.RLock()
+	defer s.cfg.mu.RUnlock()
+	plan := s.cfg.Secrets
+	return plan != nil && (len(plan.Files) > 0 || len(plan.Startup) > 0 || plan.Revision != "0" && plan.Revision != s.secretRetiredRevision)
 }
 func (s *Server) reportSecretResult(report secrets.AppliedReport) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -43,7 +46,7 @@ func (s *Server) failSecretAttempt(plan *secrets.Plan, attempt string, err error
 }
 func (s *Server) prepareSecretStart(ctx context.Context) (*secrets.PreparedStart, error) {
 	plan := s.secretPlan()
-	if !s.hasSecretPlan() {
+	if !s.hasSecretPlan() && (plan == nil || plan.Revision == "0") {
 		if consumer, ok := s.Environment.(secrets.RuntimeConsumer); ok {
 			if err := consumer.SetSecretRuntime(nil); err != nil {
 				return nil, errors.New("start_failed")
@@ -97,7 +100,7 @@ func (s *Server) prepareSecretStart(ctx context.Context) (*secrets.PreparedStart
 		}
 		preparer := s.secretPreparer
 		if preparer == nil {
-			preparer = &secrets.Preparer{}
+			preparer = &secrets.Preparer{RuntimeBase: config.Get().System.SecretsRuntimeDirectory}
 		}
 		prepared, err := preparer.Prepare(ctx, *plan, bundle, root, mapping, identity)
 		root.Close()
@@ -155,6 +158,21 @@ func (s *Server) startWithSecretRuntime() error {
 		return err
 	}
 	if prepared != nil {
+		plan := prepared.ReferencePlan()
+		if len(plan.Files) == 0 && len(plan.Startup) == 0 && len(plan.Versions) == 0 {
+			retirer, ok := s.Environment.(interface {
+				RetireSecretRuntime(*secrets.PreparedStart) error
+			})
+			if !ok {
+				return errors.New("node_incompatible")
+			}
+			if err := retirer.RetireSecretRuntime(prepared); err != nil {
+				return err
+			}
+			s.cfg.mu.Lock()
+			s.secretRetiredRevision = plan.Revision
+			s.cfg.mu.Unlock()
+		}
 		s.reportSecretResult(prepared.Report())
 		s.startSecretWatcher(prepared)
 	}
@@ -202,4 +220,16 @@ func (s *Server) secretPreflightFailure(err error) error {
 	}
 	s.failSecretAttempt(s.secretPlan(), uuid.NewString(), errors.New("start_failed"))
 	return errors.New("start_failed")
+}
+
+// ReleaseSecretRuntime leaves a live container's mounts intact. The consumer
+// independently inspects Docker before allowing the prepared area to close.
+func (s *Server) ReleaseSecretRuntime() error {
+	if err := s.stopSecretWatcher(); err != nil {
+		return err
+	}
+	if consumer, ok := s.Environment.(secrets.RuntimeConsumer); ok {
+		return consumer.SetSecretRuntime(nil)
+	}
+	return nil
 }

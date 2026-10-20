@@ -14,7 +14,7 @@ import (
 
 func (s *Server) startSecretWatcher(prepared *secrets.PreparedStart) {
 	plan, applied := prepared.ReferencePlan(), prepared.Report()
-	if len(plan.Files) == 0 || s.Environment.State() == environment.ProcessOfflineState {
+	if s.Environment.State() == environment.ProcessOfflineState {
 		return
 	}
 	root, err := os.OpenRoot(s.Filesystem().Path())

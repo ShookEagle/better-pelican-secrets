@@ -96,6 +96,8 @@ func privateDirectory(parent *os.Root, name string) error {
 	return nil
 }
 func createRuntimeArea(base, server, attempt string) (*runtimeArea, error) {
+	runtimeReconcileMutex.Lock()
+	defer runtimeReconcileMutex.Unlock()
 	if !uuidPattern.MatchString(server) || !uuidPattern.MatchString(attempt) {
 		return nil, invalid()
 	}
@@ -131,6 +133,7 @@ func createRuntimeArea(base, server, attempt string) (*runtimeArea, error) {
 		parent.Close()
 		return nil, errors.New("mount_failed")
 	}
+	activeRuntimeAttempts[filepath.Join(base, server, attempt)] = true
 	return &runtimeArea{parent, directory, base, server, attempt}, nil
 }
 func (a *runtimeArea) write(id string, data []byte, identity GameIdentity) (string, error) {
@@ -158,6 +161,8 @@ func (a *runtimeArea) write(id string, data []byte, identity GameIdentity) (stri
 	return runtimeFilePath(a.base, a.server, a.attempt, id), nil
 }
 func (a *runtimeArea) close() error {
+	runtimeReconcileMutex.Lock()
+	defer runtimeReconcileMutex.Unlock()
 	if a.directory != nil {
 		a.directory.Close()
 		a.directory = nil
@@ -168,6 +173,7 @@ func (a *runtimeArea) close() error {
 	if err := a.parent.RemoveAll(a.attempt); err != nil {
 		return err
 	}
+	delete(activeRuntimeAttempts, filepath.Join(a.base, a.server, a.attempt))
 	err := a.parent.Close()
 	a.parent = nil
 	return err

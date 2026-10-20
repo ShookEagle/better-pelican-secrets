@@ -70,7 +70,10 @@ func (c *secretPowerRemote) GetSecretBundle(ctx context.Context, server, revisio
 	var wire map[string]any
 	json.Unmarshal(raw, &wire)
 	wire["attempt_id"] = attempt
-	wire["values"] = map[string]string{plan.Versions[0].SecretID: value}
+	wire["values"] = map[string]string{}
+	if len(plan.Versions) > 0 {
+		wire["values"] = map[string]string{plan.Versions[0].SecretID: value}
+	}
 	raw, _ = json.Marshal(wire)
 	return secrets.DecodeBundle(raw)
 }
@@ -301,5 +304,37 @@ func TestSecretWatcherOwnsExactSnapshotAndStops(t *testing.T) {
 	case <-done:
 	default:
 		t.Fatal("power stop left watcher running")
+	}
+}
+
+func (e *secretPowerEnvironment) RetireSecretRuntime(p *secrets.PreparedStart) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.prepared != p || len(p.ReferencePlan().Versions) > 0 {
+		return errors.New("start_failed")
+	}
+	p.Close()
+	e.prepared = nil
+	return nil
+}
+func TestRetiredEmptyPlanReassertsReceiptOnNextStart(t *testing.T) {
+	s, c, _ := secretPowerFixture(t)
+	c.plan.Revision = "9007199254740994"
+	c.plan.Files = []secrets.FilePlan{}
+	c.plan.Startup = []secrets.StartupPlan{}
+	c.plan.Versions = []secrets.VersionRef{}
+	if err := s.HandlePowerAction(PowerActionStart); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.HandlePowerAction(PowerActionStop); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.HandlePowerAction(PowerActionStart); err != nil {
+		t.Fatal(err)
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.requests != 2 {
+		t.Fatal("retirement could not recover a lost receipt on a later start")
 	}
 }

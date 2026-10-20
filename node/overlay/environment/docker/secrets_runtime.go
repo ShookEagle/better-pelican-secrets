@@ -121,10 +121,13 @@ func (e *Environment) applySecretRuntime(conf *container.Config, host *container
 	// Docker's raw persistent logs bypass Wings' sanitizer. Protected games use
 	// attach for live output and a bounded sanitized in-memory history instead.
 	host.LogConfig = container.LogConfig{Type: "none"}
+	host.RestartPolicy = container.RestartPolicy{Name: "no"}
 	if conf.Labels == nil {
 		conf.Labels = map[string]string{}
 	}
 	conf.Labels["io.better-pelican-secrets.protocol"] = "1"
+	conf.Labels["io.better-pelican-secrets.attempt"] = prepared.Report().AttemptID
+	conf.Labels["io.better-pelican-secrets.server"] = e.Id
 	return nil
 }
 func (e *Environment) SecretRuntimeConfiguration(ctx context.Context) (secrets.DataMapping, secrets.GameIdentity, error) {
@@ -222,4 +225,24 @@ func (e *Environment) scanSecretOutput(reader io.Reader, callback func([]byte)) 
 		pipeWriter.CloseWithError(err)
 	}()
 	return system.ScanReader(pipeReader, deliver)
+}
+
+// RetireSecretRuntime is called only after a successful replacement start.
+// An empty consumed snapshot proves the replacement contains no secret bindings.
+func (e *Environment) RetireSecretRuntime(prepared *secrets.PreparedStart) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if prepared == nil || e.secretRuntime != prepared || e.secretReady || !prepared.IsOpen() {
+		return errors.New("start_failed")
+	}
+	plan := prepared.ReferencePlan()
+	if len(plan.Files) > 0 || len(plan.Startup) > 0 || len(plan.Versions) > 0 {
+		return errors.New("secret_in_use")
+	}
+	if err := prepared.Close(); err != nil {
+		return err
+	}
+	e.secretRuntime = nil
+	e.secretRequired = false
+	return nil
 }

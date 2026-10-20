@@ -16,11 +16,15 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/pelican/wings/config"
 	"github.com/pelican/wings/environment"
+	"github.com/pelican/wings/events"
 	"github.com/pelican/wings/secrets"
 	"github.com/pelican/wings/system"
 )
 
 func dockerSecretSnapshot(t *testing.T, value, attempt string) *secrets.PreparedStart {
+	return dockerSecretSnapshotPlan(t, value, attempt, false)
+}
+func dockerSecretSnapshotPlan(t *testing.T, value, attempt string, empty bool) *secrets.PreparedStart {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(os.Getenv("BPS_PROTOCOL_FIXTURES"), "protocol.json"))
 	if err != nil {
@@ -39,6 +43,15 @@ func dockerSecretSnapshot(t *testing.T, value, attempt string) *secrets.Prepared
 	}
 	fixtures.Bundle["attempt_id"] = attempt
 	fixtures.Bundle["values"] = map[string]string{plan.Versions[0].SecretID: value}
+	if empty {
+		plan.Files = []secrets.FilePlan{}
+		plan.Startup = []secrets.StartupPlan{}
+		plan.Versions = []secrets.VersionRef{}
+		fixtures.Bundle["files"] = []any{}
+		fixtures.Bundle["startup"] = []any{}
+		fixtures.Bundle["versions"] = []any{}
+		fixtures.Bundle["values"] = map[string]string{}
+	}
 	wire, _ := json.Marshal(fixtures.Bundle)
 	bundle, err := secrets.DecodeBundle(wire)
 	if err != nil {
@@ -79,7 +92,7 @@ func secretDockerEnvironment(t *testing.T) *Environment {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { cli.Close() })
-	return &Environment{Id: "11111111-1111-4111-8111-111111111111", client: cli, Configuration: environment.NewConfiguration(environment.Settings{}, []string{"RCON_PASSWORD=old-ordinary", "OTHER=keep"}), st: system.NewAtomicString(environment.ProcessOfflineState)}
+	return &Environment{emitter: events.NewBus(), Id: "11111111-1111-4111-8111-111111111111", client: cli, Configuration: environment.NewConfiguration(environment.Settings{}, []string{"RCON_PASSWORD=old-ordinary", "OTHER=keep"}), st: system.NewAtomicString(environment.ProcessOfflineState)}
 }
 func TestStoppedContainerGetsNewEnvAndMounts(t *testing.T) {
 	env := secretDockerEnvironment(t)
@@ -88,12 +101,18 @@ func TestStoppedContainerGetsNewEnvAndMounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := &container.Config{Env: append([]string{}, env.Configuration.EnvironmentVariables()...)}
-	host := &container.HostConfig{Mounts: []mount.Mount{{Type: mount.TypeBind, Source: first.DataMapping().HostRoot, Target: first.DataMapping().ContainerRoot}}}
+	host := &container.HostConfig{RestartPolicy: container.RestartPolicy{Name: "always"}, Mounts: []mount.Mount{{Type: mount.TypeBind, Source: first.DataMapping().HostRoot, Target: first.DataMapping().ContainerRoot}}}
 	if err := env.applySecretRuntime(config, host); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(strings.Join(config.Env, "\n"), "RCON_PASSWORD=fixture-secret") || len(host.Mounts) != 2 || !host.Mounts[1].ReadOnly {
 		t.Fatal("ephemeral overrides missing")
+	}
+	if host.RestartPolicy.Name != "no" {
+		t.Fatal("Docker can restart a protected game without a fresh bundle")
+	}
+	if config.Labels["io.better-pelican-secrets.attempt"] != first.Report().AttemptID {
+		t.Fatal("attempt identity missing")
 	}
 	if host.LogConfig.Type != "none" {
 		t.Fatal("protected container retained raw Docker log storage")
@@ -248,5 +267,49 @@ func TestSecretOrdinaryAttachDoesNotRequireStoppedContainer(t *testing.T) {
 	}
 	if calls != 0 {
 		t.Fatal("ordinary attach probed secret runtime ownership")
+	}
+}
+
+func TestEmptyRetirementRequiresSuccessfulConsumedStart(t *testing.T) {
+	e := secretDockerEnvironment(t)
+	p := dockerSecretSnapshotPlan(t, "", "44444444-4444-4444-8444-444444444444", true)
+	if err := e.SetSecretRuntime(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.RetireSecretRuntime(p); err == nil {
+		t.Fatal("unconsumed attempt retired")
+	}
+	if err := e.beginSecretStart(); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.RetireSecretRuntime(p); err != nil {
+		t.Fatal(err)
+	}
+	if p.IsOpen() || e.secretRequired || e.secretRuntime != nil {
+		t.Fatal("empty runtime was not retired")
+	}
+	protected := dockerSecretSnapshot(t, "fixture-secret", "55555555-5555-4555-8555-555555555555")
+	if err := e.SetSecretRuntime(protected); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.beginSecretStart(); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.RetireSecretRuntime(protected); err == nil || !protected.IsOpen() {
+		t.Fatal("nonempty runtime retired")
+	}
+}
+
+func TestDestroyReleasesPrivateRuntimeAfterContainerRemoval(t *testing.T) {
+	e := secretDockerEnvironment(t)
+	p := dockerSecretSnapshot(t, "fixture-secret", "44444444-4444-4444-8444-444444444444")
+	if err := e.SetSecretRuntime(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Destroy(); err != nil {
+		t.Fatal(err)
+	}
+	if p.IsOpen() {
+		t.Fatal("deleted container retained private runtime")
 	}
 }

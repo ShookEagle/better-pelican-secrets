@@ -138,7 +138,7 @@
     @if ($audit)
         <x-filament::section heading="Recent audit events" description="The latest 40 events for this server. Values are never recorded.">
             @foreach ($audit as $event)
-                <p>{{ $event['created_at'] }} · Actor {{ $event['actor_id'] ?? 'Deleted user' }} · {{ $event['operation'] }} · <code>{{ json_encode($event['metadata'], JSON_UNESCAPED_SLASHES) }}</code></p>
+                <p>{{ $event['created_at'] }} · Actor {{ ($event['metadata']['origin'] ?? null) === 'host' ? 'Host/system' : ($event['actor_id'] ?? 'Deleted user') }} · {{ $event['operation'] }} · <code>{{ json_encode($event['metadata'], JSON_UNESCAPED_SLASHES) }}</code></p>
             @endforeach
         </x-filament::section>
     @endif

@@ -23,7 +23,9 @@ import (
 	"github.com/pelican/wings/server/filesystem"
 )
 
-func TestSecretStartDockerLifecycleLive(t *testing.T) {
+func TestSecretStartDockerLifecycleLive(t *testing.T) { runSecretDockerLifecycle(t, false) }
+func TestSecretLifecycleRecoveryLive(t *testing.T)    { runSecretDockerLifecycle(t, true) }
+func runSecretDockerLifecycle(t *testing.T, lifecycle bool) {
 	rootPath, runtimePath, image, serverID := os.Getenv("BPS_LIVE_DATA"), os.Getenv("BPS_LIVE_RUNTIME"), os.Getenv("BPS_LIVE_IMAGE"), os.Getenv("BPS_LIVE_SERVER")
 	if rootPath == "" || runtimePath == "" || image == "" || serverID == "" {
 		t.Fatal("explicit live Docker fixture parameters required")
@@ -182,6 +184,70 @@ func TestSecretStartDockerLifecycleLive(t *testing.T) {
 	if strings.Contains(string(cache), "fixture-secret") || strings.Contains(string(cache), "second-value") {
 		t.Fatal("cached server configuration included values")
 	}
+
+	if lifecycle {
+		remote.mu.Lock()
+		remote.failure = true
+		remote.mu.Unlock()
+		if got := liveSecretExec(t, cli, serverID, []string{"cat", "/home/container/csgo/config.json"}); got != `{"key":"second-value"}` {
+			t.Fatal("outage changed running snapshot")
+		}
+		remote.mu.Lock()
+		remote.failure = false
+		remote.mu.Unlock()
+		sourcePath := filepath.Join(rootPath, "csgo/config.json")
+		if err := os.Rename(sourcePath, sourcePath+".moved"); err != nil {
+			t.Fatal(err)
+		}
+		renamed, err := cli.ContainerInspect(context.Background(), serverID)
+		if err != nil || !renamed.State.Running {
+			t.Fatal("source rename stopped the running game")
+		}
+		if err := s.HandlePowerAction(PowerActionRestart); err == nil {
+			t.Fatal("missing source started")
+		}
+		if err := os.Rename(sourcePath+".moved", sourcePath); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.HandlePowerAction(PowerActionStart); err != nil {
+			t.Fatal(err)
+		}
+		orphan := filepath.Join(runtimePath, serverID, "66666666-6666-4666-8666-666666666666")
+		if err := os.MkdirAll(orphan, 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(orphan, "fixture"), []byte("orphan-fixture"), 0400); err != nil {
+			t.Fatal(err)
+		}
+		if err := dockerEnvironment.ReconcileSecretRuntime(context.Background(), runtimePath); err != nil {
+			t.Fatal(err)
+		}
+		// The test driver itself binds the whole runtime root, so the adapter
+		// correctly retains all of it. Qualify orphan deletion separately with
+		// the real game's inspected mounts, without that synthetic root owner.
+		if _, err := os.Stat(orphan); err != nil {
+			t.Fatal("whole-root mount owner was ignored")
+		}
+		inspected, err := cli.ContainerInspect(context.Background(), serverID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		identity := secrets.ContainerIdentity{ContainerID: inspected.ID}
+		for _, m := range inspected.Mounts {
+			if m.Source != "" {
+				identity.MountSources = append(identity.MountSources, m.Source)
+			}
+		}
+		if err := secrets.Reconcile(context.Background(), runtimePath, []secrets.ContainerIdentity{identity}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(orphan); !os.IsNotExist(err) {
+			t.Fatal("orphan attempt survived game inventory")
+		}
+		if got := liveSecretExec(t, cli, serverID, []string{"cat", "/home/container/csgo/config.json"}); got != `{"key":"second-value"}` {
+			t.Fatal("reconcile damaged running snapshot")
+		}
+	}
 	remote.mu.Lock()
 	remote.failure = true
 	remote.mu.Unlock()
@@ -194,6 +260,39 @@ func TestSecretStartDockerLifecycleLive(t *testing.T) {
 	}
 	if err := env.Start(context.Background()); err == nil {
 		t.Fatal("direct environment start reused consumed snapshot")
+	}
+	if lifecycle {
+		remote.mu.Lock()
+		remote.failure = false
+		remote.plan.Revision = "9007199254740995"
+		remote.plan.Files = []secrets.FilePlan{}
+		remote.plan.Startup = []secrets.StartupPlan{}
+		remote.plan.Versions = []secrets.VersionRef{}
+		remote.settingsOverrides["invocation"] = "while true; do sleep 1; done"
+		remote.mu.Unlock()
+		if err := s.HandlePowerAction(PowerActionStart); err != nil {
+			t.Fatal(err)
+		}
+		retired, err := cli.ContainerInspect(context.Background(), serverID)
+		if err != nil || !retired.State.Running {
+			t.Fatal("empty replacement did not start")
+		}
+		for _, m := range retired.Mounts {
+			if strings.HasPrefix(m.Source, runtimePath+"/") {
+				t.Fatal("empty replacement retained secret mount")
+			}
+		}
+		if strings.Contains(strings.Join(retired.Config.Env, "\\n"), "second-value") {
+			t.Fatal("empty replacement retained environment value")
+		}
+		if s.hasSecretPlan() {
+			t.Fatal("empty successfully replaced revision not retired locally")
+		}
+		if err := s.HandlePowerAction(PowerActionStop); err != nil {
+			t.Fatal(err)
+		}
+		s.CleanupForDestroy()
+		return
 	}
 	remote.mu.Lock()
 	defer remote.mu.Unlock()
