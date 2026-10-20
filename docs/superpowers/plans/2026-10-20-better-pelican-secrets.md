@@ -108,16 +108,16 @@ All tasks follow red/green verification. A failure must be the intended missing 
 
 **Interfaces:** `SecretOperation` is a backed enum of the seven spec operation strings, with cases `ListSecrets`, `Reveal`, `Create`, `Update`, `Delete`, `Bind`, `ManageAccess`. `SecretScope(int $serverId, ?string $secretId)` is a readonly value. `SecretAuthorizer::authorize(User $actor, SecretOperation $operation, SecretScope $scope): void` throws a metadata-only authorization error. `ExplicitNativeGrantReader::operations(User $actor, int $serverId): array` reads raw role/subuser grants without owner shortcuts. `GrantService::grant(User $actor, User $recipient, SecretScope $scope, array $operations): void`; `revoke(User $actor, User $recipient, SecretScope $scope, array $operations): void`.
 
-- [ ] **Step 1:** Write a table-driven `test_explicit_permission_matrix` covering root, ordinary admin, owner, subuser, global role grant, server grant, per-secret grant, and wrong server. Assert an owner without a grant is denied and a root is allowed. `test_manager_cannot_grant_unheld_reveal` and `test_revocation_affects_next_request` cover delegation and cache invalidation. Check broader additive grants remain effective after deleting a narrow grant.
+- [x] **Step 1:** Write a table-driven `test_explicit_permission_matrix` covering root, ordinary admin, owner, subuser, global role grant, server grant, per-secret grant, and wrong server. Assert an owner without a grant is denied and a root is allowed. `test_manager_cannot_grant_unheld_reveal` and `test_revocation_affects_next_request` cover delegation and cache invalidation. Check broader additive grants remain effective after deleting a narrow grant.
 
   ```php
   $this->expectException(AuthorizationException::class);
   $authorizer->authorize($ownerWithoutGrant, SecretOperation::Reveal, $scope);
   ```
-- [ ] **Step 2:** Run `./tools/dev php tests/php/Secrets`; expected failures in the new authorizer/grant tests while Task 2 stays green.
-- [ ] **Step 3:** Implement root-only unconditional bypass, additive explicit scopes, server-only create, normal server membership, and same-or-narrower delegation. Native role/subuser mutation adapters use these checks before storing custom rights; no native `can()` wildcard is accepted as proof. Memoization is request-local, and grant mutations invalidate native permission caches.
-- [ ] **Step 4:** Repeat the command. Expected: every operation/actor cell passes, including direct grants to an owner without a subuser row and immediate next-request denial after revoke.
-- [ ] **Step 5:** Commit `feat: enforce explicit server and secret grants`.
+- [x] **Step 2:** Run `./tools/dev php tests/php/Secrets`; expected failures in the new authorizer/grant tests while Task 2 stays green.
+- [x] **Step 3:** Implement root-only unconditional bypass, additive explicit scopes, server-only create, normal server membership, and same-or-narrower delegation. Native role/subuser mutation adapters use these checks before storing custom rights; no native `can()` wildcard is accepted as proof. Memoization is request-local, and grant mutations invalidate native permission caches.
+- [x] **Step 4:** Repeat the command. Expected: every operation/actor cell passes, including direct grants to an owner without a subuser row and immediate next-request denial after revoke.
+- [x] **Step 5:** Commit `feat: enforce explicit server and secret grants`.
 
 ### Task 4: Freeze protocol v1 and cross-language fixture contracts
 

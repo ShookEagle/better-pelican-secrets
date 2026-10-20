@@ -113,7 +113,7 @@ def main():
         php_run(["composer", "install", "--no-interaction", "--prefer-dist"])
     elif command == "php":
         test_arguments = ["/workspace/" + arg if arg.startswith("tests/") else arg for arg in arguments]
-        php_run(["php", "vendor/bin/phpunit", "-c", "/workspace/tests/phpunit.xml", *test_arguments])
+        php_run(["php", "-d", "memory_limit=512M", "vendor/bin/phpunit", "-c", "/workspace/tests/phpunit.xml", *test_arguments])
     elif command == "pint":
         php_run(["php", "vendor/bin/pint", "/workspace/plugins", "/workspace/tests/php", *arguments])
     elif command == "task1-check":

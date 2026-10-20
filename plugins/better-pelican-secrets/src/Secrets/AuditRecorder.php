@@ -11,13 +11,14 @@ final class AuditRecorder
 {
     public function record(User|int $actor, string $operation, #[\SensitiveParameter] array $metadata): void
     {
-        if (!in_array($operation, ['secret.create', 'secret.replace', 'secret.delete', 'secret.reveal', 'secret.description'], true)) {
+        if (!in_array($operation, ['secret.create', 'secret.replace', 'secret.delete', 'secret.reveal', 'secret.description', 'grant.grant', 'grant.revoke'], true)) {
             throw new DomainException('Invalid audit operation.');
         }
         foreach ($metadata as $key => $value) {
             $valid = match ($key) {
                 'secret_id' => is_string($value) && Str::isUuid($value),
-                'server_id', 'version' => is_int($value) && $value > 0,
+                'operations' => is_array($value) && count($value) <= 7 && array_all($value, fn ($operation) => is_string($operation) && SecretOperation::tryFrom($operation) !== null),
+                'server_id', 'version', 'recipient_id' => is_int($value) && $value > 0,
                 default => false,
             };
             if (!$valid) {
