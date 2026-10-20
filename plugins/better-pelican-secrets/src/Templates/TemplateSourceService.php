@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Repositories\Daemon\DaemonFileRepository;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
 use ShookEagle\BetterPelicanSecrets\Node\Protocol;
 use ShookEagle\BetterPelicanSecrets\Plans\ApplicationStatusService;
@@ -58,13 +59,40 @@ final class TemplateSourceService
 
     private function source(Server $server, ManagedFile $file): string
     {
+        return $this->readPathInternal($server, $file->source);
+    }
+
+    public function readPath(User $actor, Server $server, string $path, bool $allowMissing = false): ?string
+    {
+        $this->authorize($actor, $server, 'file.read-content');
+        if ($path === '' || strlen($path) > 4096 || !mb_check_encoding($path, 'UTF-8') || preg_match('/[[:cntrl:]]/u', $path) || str_contains($path, chr(92)) || str_starts_with($path, '/')
+            || array_intersect(explode('/', $path), ['', '.', '..'])) {
+            throw new TemplateError('template_invalid');
+        }
+        try {
+            return $this->readPathInternal($server, $path);
+        } catch (RequestException $error) {
+            if ($allowMissing && $error->response->status() === 404) {
+                return null;
+            }
+            throw new TemplateError('template_invalid');
+        } catch (\Throwable $error) {
+            if ($error instanceof TemplateError) {
+                throw $error;
+            }
+            throw new TemplateError('template_invalid');
+        }
+    }
+
+    private function readPathInternal(Server $server, string $path): string
+    {
         $limit = config('better-pelican-secrets.limits.template_bytes', Protocol::LIMITS['template_bytes']);
         if (!is_int($limit) || $limit < 1 || $limit > Protocol::LIMITS['template_bytes']) {
             throw new TemplateError('limit_exceeded');
         }
         $response = $this->files->setServer($server)->getHttpClient()
             ->withOptions(['stream' => true])->connectTimeout(3)->timeout(10)
-            ->get("/api/servers/{$server->uuid}/files/contents", ['file' => $file->source]);
+            ->get("/api/servers/{$server->uuid}/files/contents", ['file' => $path]);
         $stream = $response->toPsrResponse()->getBody();
         try {
             $length = $response->header('Content-Length');

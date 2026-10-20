@@ -37,6 +37,28 @@ final class PlanService
         }, 3);
     }
 
+    public function validateFile(Server $server, FilePlan $file): void
+    {
+        $wire = $this->current($server)->toWire();
+        $wire['files'] = array_values(array_filter($wire['files'], fn ($existing) => $existing['file_id'] !== $file->fileId));
+        $wire['files'][] = $file->toWire();
+        $ids = [];
+        foreach ($wire['files'] as $candidate) {
+            foreach ($candidate['manifest'] as $entry) {
+                $ids[$entry['secret_id']] = true;
+            }
+        }
+        foreach ($wire['startup'] as $binding) {
+            $ids[$binding['secret_id']] = true;
+        }
+        $wire['versions'] = [];
+        foreach (array_keys($ids) as $id) {
+            $secret = Secret::where('server_id', $server->id)->findOrFail($id);
+            $wire['versions'][] = ['secret_id' => $id, 'version' => $secret->current_version];
+        }
+        Protocol::decodePlan($wire);
+    }
+
     public function snapshot(Server $server, string $expectedRevision): DesiredPlan
     {
         $plan = $this->current($server);

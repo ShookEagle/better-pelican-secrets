@@ -205,7 +205,8 @@ final class SecretActions
         }
         $ids = array_column($rows, 'id');
         $files = ManagedFile::where('server_id', $server->id)->get()->filter(fn ($file) => array_all($file->manifest, fn ($entry) => in_array($entry['secret_id'], $ids, true)))
-            ->map(fn ($file) => $file->only(['id', 'source', 'destination', 'format']))->values()->all();
+            ->map(fn ($file) => [...$file->only(['id', 'source', 'destination', 'format']),
+                'can_manage' => array_all($file->manifest, fn ($entry) => $this->can($actor, Op::Bind, $server, $entry['secret_id'], $admin))])->values()->all();
         $bindings = StartupBinding::where('server_id', $server->id)->whereIn('secret_id', $ids)->get(['env', 'secret_id'])->toArray();
         $audit = [];
         if ($this->can($actor, Op::ManageAccess, $server, admin: $admin) && $this->can($actor, Op::ListSecrets, $server, admin: $admin)) {

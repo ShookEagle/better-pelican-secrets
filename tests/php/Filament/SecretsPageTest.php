@@ -7,6 +7,9 @@ use App\Models\Server;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\Request;
+use Illuminate\Testing\TestResponse;
 use Illuminate\View\Component;
 use Livewire\Livewire;
 use ShookEagle\BetterPelicanSecrets\Filament\Server\Pages\Secrets;
@@ -118,6 +121,22 @@ final class SecretsPageTest extends PluginTestCase
         $this->assertNotEmpty($overview['audit']);
         $this->assertSame('secret.create', collect($overview['audit'])->firstWhere('operation', 'secret.create')['operation']);
         $this->assertStringNotContainsString('fixture-secret', json_encode($overview));
+    }
+
+    public function test_actual_livewire_reveal_response_is_no_store(): void
+    {
+        $this->grant(Op::ListSecrets, Op::Reveal);
+        $component = Livewire::test(Secrets::class);
+        $request = Request::create('https://localhost' . app('livewire')->getUpdateUri(), 'POST', [], [], [],
+            ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json', 'HTTP_X_LIVEWIRE' => 'true'],
+            json_encode(['components' => [['snapshot' => json_encode($component->snapshot), 'updates' => [],
+                'calls' => [['path' => '', 'method' => 'revealValue', 'params' => [$this->secretId]]]]]]));
+        $kernel = app(Kernel::class);
+        $response = $kernel->handle($request);
+        $kernel->terminate($request, $response);
+        $response = TestResponse::fromBaseResponse($response);
+        $response->assertOk()->assertJsonPath('components.0.effects.dispatches.0.params.value', 'fixture-secret');
+        $this->assertTrue($response->headers->hasCacheControlDirective('no-store'));
     }
 
     public function test_admin_list_respects_scope(): void

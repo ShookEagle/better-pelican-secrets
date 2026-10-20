@@ -286,17 +286,17 @@ Produce Go structs `Plan`, `FilePlan`, `StartupPlan`, `Bundle`, `AppliedReport`,
 
 **Interfaces:** File setup uses Task 5 preview, Task 7 binding, and Task 11 source services. `MigrationService::migrate(User $actor, Server $server, string $expectedDigest, string $replacementSource, FilePlan $file, array $confirmedReferences): DesiredPlan` replaces an existing source only after explicit confirmation and a digest recheck. `confirmedReferences` contains approved secret IDs/modes, never old values. Save source optimistically before committing the corresponding approved plan; if the plan save fails, report an invalid/pending source rather than claiming a cross-node database transaction or starting it. Native bound startup inputs show `Bound to secret: NAME`, not the value.
 
-- [ ] **Step 1:** Add `test_picker_offers_only_bindable_secrets`, `test_format_suggestion_requires_confirmation`, `test_json_yaml_dotenv_and_text_setup`, `test_migration_requires_confirmation_and_current_digest`, and `test_bound_startup_form_cannot_write_plain_value`. Verify the JSON picker replaces an entire selected string value, avoiding doubled outer quotes, and previews use dummy data.
+- [x] **Step 1:** Add `test_picker_offers_only_bindable_secrets`, `test_format_suggestion_requires_confirmation`, `test_json_yaml_dotenv_and_text_setup`, `test_migration_requires_confirmation_and_current_digest`, and `test_bound_startup_form_cannot_write_plain_value`. Verify the JSON picker replaces an entire selected string value, avoiding doubled outer quotes, and previews use dummy data.
 
   ```php
   $this->assertSame('json-string', $file->defaultMode);
   $this->assertStringContainsString('{{secret:API_KEY}}', $savedSource);
   $this->assertStringNotContainsString('fixture-secret', $preview);
   ```
-- [ ] **Step 2:** Run `./tools/dev php tests/php/Filament/BindingActionsTest.php`, `./tools/dev php tests/php/Templates/MigrationServiceTest.php`, and `./tools/dev acceptance -k setup_flow`.
-- [ ] **Step 3:** Implement file picker/create, generic token insertion, explicit format/mode controls, mixed-mode support, dummy rendered preview, source/destination mapping display, and pending status. Offer only existing egg variables for startup bindings. The migration confirmation explains old copies/logs/backups are untouched and rotation may be needed; it does not echo detected values. Show the read-only-runtime limitation before registration. No per-game schema or editable-field allowlist is introduced.
-- [ ] **Step 4:** Repeat suites and exercise one secret used in all four file formats and startup in the disposable UI. Expected simple setup with markers in originals, no automatic restart, and exact runtime values only after start.
-- [ ] **Step 5:** Commit `feat: configure generic templates and startup secret bindings`.
+- [x] **Step 2:** Run `./tools/dev php tests/php/Filament/BindingActionsTest.php`, `./tools/dev php tests/php/Templates/MigrationServiceTest.php`, and `./tools/dev acceptance -k setup_flow`.
+- [x] **Step 3:** Implement file picker/create, generic token insertion, explicit format/mode controls, mixed-mode support, dummy rendered preview, source/destination mapping display, and pending status. Offer only existing egg variables for startup bindings. The migration confirmation explains old copies/logs/backups are untouched and rotation may be needed; it does not echo detected values. Show the read-only-runtime limitation before registration. No per-game schema or editable-field allowlist is introduced.
+- [x] **Step 4:** Repeat suites and exercise one secret used in all four file formats and startup in the disposable UI. Expected simple setup with markers in originals, no automatic restart, and exact runtime values only after start.
+- [x] **Step 5:** Commit `feat: configure generic templates and startup secret bindings`.
 
 ### Task 14: Complete transfer, restore, cleanup, retention, and uninstall behavior
 

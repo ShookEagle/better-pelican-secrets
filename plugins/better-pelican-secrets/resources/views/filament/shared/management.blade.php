@@ -1,5 +1,5 @@
 <div style="display:grid;gap:1.5rem" x-data="{ revealed: '', access: {users:[],delegable:[]}, scope: null, recipient: '', operations: [] }"
-    @click.capture="revealed = ''" @change.capture="revealed = ''"
+    @click.capture="if (!$refs.reveal.contains($event.target)) revealed = ''" @change.capture="revealed = ''"
     @bps-reveal.window="revealed = $event.detail.value; $refs.reveal.showModal(); setTimeout(() => { revealed = ''; $refs.reveal.close() }, 30000)"
     @bps-access.window="access = $event.detail.details; scope = $event.detail.scope; operations = []; recipient = ''; if (!$refs.access.open) $refs.access.showModal()"
     x-on:livewire:navigating.window="revealed = ''; $refs.reveal.close(); $refs.access.close()">
@@ -7,7 +7,7 @@
         <p><strong>{{ $server->name }}</strong> · Desired {{ $status->desiredRevision }} · Applied {{ $status->appliedRevision ?? 'Never applied' }}</p>
         <p>{{ $status->pending ? __('better-pelican-secrets::secrets.pending') : ($status->appliedRevision === null ? 'No runtime secret bindings are configured.' : 'Saved configuration is applied.') }}</p>
         @if ($status->dirty)<p>Source files have changed since the last successful start.</p>@endif
-        @if ($status->lastErrorCode)<p>Last start status: {{ $status->lastErrorCode }}</p>@endif
+        @if ($status->lastErrorCode)<p>Configuration status: {{ $status->lastErrorCode }}</p>@endif
         <p style="margin-top:.75rem">{{ __('better-pelican-secrets::secrets.runtime_note') }}</p>
     </x-filament::section>
 
@@ -85,16 +85,51 @@
 
     <x-filament::section heading="File templates">
         <p>{{ __('better-pelican-secrets::secrets.readonly') }}</p>
+        @if ($canSetupFiles && $bindable)
+            @include('better-pelican-secrets::filament.shared.template-editor')
+        @endif
+        @foreach ($setupFailures as $failure)
+            <p>Incomplete setup: <code>{{ $failure->source ?? $failure->file_id }}</code>. Reopen and review this source before retrying.</p>
+        @endforeach
         @forelse ($files as $file)
             <p style="margin-top:.75rem"><code>{{ $file['source'] }}</code> → <code>{{ $file['destination'] }}</code> · {{ $file['format'] }}</p>
+            @if ($canSetupFiles && $bindable && $file['can_manage'])
+                <div style="display:flex;gap:.5rem;margin:.5rem 0;flex-wrap:wrap">
+                    <x-filament::button color="gray" wire:click="openTemplate({{ \Illuminate\Support\Js::from($file['source']) }})">Edit template</x-filament::button>
+                    <x-filament::button color="warning" wire:click="removeTemplate('{{ $file['id'] }}')" wire:confirm="Remove this managed binding on the next start? The source keeps its markers.">Remove binding</x-filament::button>
+                </div>
+            @endif
         @empty
             <p>No authorized file templates.</p>
         @endforelse
     </x-filament::section>
 
     <x-filament::section heading="Startup bindings">
+        @if ($canSetupStartup && $bindable)
+            <form x-data="{env:'',secret:'',confirmed:false}" x-on:submit.prevent="if(env && secret) $wire.bindStartup(env,secret,JSON.parse($refs.variable.options[$refs.variable.selectedIndex].dataset.metadata).digest,confirmed)" style="display:grid;gap:.75rem;margin:1rem 0">
+                <label>Existing egg variable
+                    <x-filament::input.wrapper><x-filament::input.select x-ref="variable" x-model="env" x-on:change="confirmed=false">
+                        <option value="">Select a startup variable</option>
+                        @foreach ($startupVariables as $variable)
+                            <option value="{{ $variable['env'] }}" data-metadata="{{ json_encode($variable) }}" @disabled(!$variable['can_bind'])>{{ $variable['name'] }} ({{ $variable['env'] }}){{ $variable['bound'] ? ' — bound' : ($variable['migration_required'] ? ' — migration required' : '') }}</option>
+                        @endforeach
+                    </x-filament::input.select></x-filament::input.wrapper>
+                </label>
+                <label>Secret
+                    <x-filament::input.wrapper><x-filament::input.select x-model="secret">
+                        <option value="">Select a bindable secret</option>
+                        @foreach ($bindable as $item)<option value="{{ $item['id'] }}">{{ $item['name'] }}</option>@endforeach
+                    </x-filament::input.select></x-filament::input.wrapper>
+                </label>
+                <label><input type="checkbox" x-model="confirmed"> Clear the ordinary variable value and bind this secret. Old copies, logs, defaults, and backups are unchanged; exposed credentials may need rotation.</label>
+                <div><x-filament::button type="submit">Confirm and bind for next start</x-filament::button></div>
+            </form>
+        @endif
         @forelse ($bindings as $binding)
             <p><code>{{ $binding['env'] }}</code> → {{ collect($rows)->firstWhere('id', $binding['secret_id'])['name'] }}</p>
+            @if ($canSetupStartup && in_array($binding['secret_id'], array_column($bindable, 'id'), true))
+                <x-filament::button color="warning" wire:click="unbindStartup({{ \Illuminate\Support\Js::from($binding['env']) }})" wire:confirm="Remove this startup binding for the next start? The ordinary value remains empty.">Unbind</x-filament::button>
+            @endif
         @empty
             <p>No authorized startup bindings.</p>
         @endforelse
@@ -108,14 +143,14 @@
         </x-filament::section>
     @endif
 
-    <dialog x-ref="reveal" @close="revealed = ''" @cancel="revealed = ''" style="max-width:40rem;width:90%;border-radius:.75rem;padding:1.5rem;color:inherit;background:Canvas">
+    <dialog wire:ignore.self x-ref="reveal" @close="revealed = ''" @cancel="revealed = ''" style="max-width:40rem;width:90%;border-radius:.75rem;padding:1.5rem;color:inherit;background:Canvas">
         <h2 style="font-size:1.2rem;font-weight:600">Revealed value</h2>
         <p>Clears on close, navigation, or after 30 seconds.</p>
         <pre x-text="revealed" style="white-space:pre-wrap;overflow-wrap:anywhere;margin:1rem 0;max-height:50vh;overflow:auto"></pre>
         <x-filament::button type="button" x-on:click="revealed = ''; $refs.reveal.close()">Close and clear</x-filament::button>
     </dialog>
 
-    <dialog x-ref="access" style="max-width:55rem;width:95%;border-radius:.75rem;padding:1.5rem;color:inherit;background:Canvas">
+    <dialog wire:ignore.self x-ref="access" style="max-width:55rem;width:95%;border-radius:.75rem;padding:1.5rem;color:inherit;background:Canvas">
         <h2 style="font-size:1.2rem;font-weight:600">Manage access</h2>
         <p>Grants add access. Native roles and broader grants are inherited; remove those at their original scope.</p>
         <div style="overflow:auto;max-height:35vh;margin:1rem 0">

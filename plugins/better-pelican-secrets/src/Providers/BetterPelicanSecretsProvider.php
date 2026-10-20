@@ -5,6 +5,7 @@ namespace ShookEagle\BetterPelicanSecrets\Providers;
 use App\Enums\TablerIcon;
 use App\Filament\Admin\Resources\Roles\RoleResource;
 use App\Filament\Admin\Resources\Users\UserResource;
+use App\Filament\Components\Forms\Fields\StartupVariable;
 use App\Models\Role;
 use App\Models\Server;
 use App\Models\ServerTransfer;
@@ -72,6 +73,8 @@ final class BetterPelicanSecretsProvider extends ServiceProvider
         Role::registerCustomPermissions(['secrets' => $operations]);
         Subuser::saving(fn (Subuser $subuser) => app(NativeGrantGuard::class)->savingSubuser($subuser));
         $this->app['router']->pushMiddlewareToGroup('application-api', NativeRoleApiGuard::class);
+        StartupVariable::configureUsing(
+            fn ($field) => $field->view('better-pelican-secrets::filament.shared.startup-variable'));
         if (self::$formsRegistered) {
             return;
         }

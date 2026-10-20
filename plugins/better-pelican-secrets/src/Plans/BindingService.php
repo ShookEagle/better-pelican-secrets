@@ -32,19 +32,7 @@ final class BindingService
     {
         return DB::transaction(function () use ($actor, $server, $file, $templateSource) {
             $server = $this->lockServer($actor, $server, 'file.update');
-            $existing = ManagedFile::query()->find($file->fileId);
-            if ($existing && $existing->server_id !== $server->id) {
-                throw new AuthorizationException('Secret access denied.');
-            }
-            $compiled = $this->compiler->compile(new TemplateDocument($templateSource, $file->format, $file->defaultMode, $file->manifest));
-            $this->authorizeManifest($actor, $server, $file->manifest);
-            $this->authorizeManifest($actor, $server, $existing?->manifest ?? []);
-            app(NodeCapabilityService::class)->assertCompatible($server->node);
-            $dummy = [];
-            foreach ($file->manifest as $entry) {
-                $dummy[$entry['secret_id']] = 'DUMMY_VALUE';
-            }
-            $this->compiler->render($compiled, $dummy);
+            $this->preflightFile($actor, $server, $file, $templateSource);
             $attributes = ['server_id' => $server->id, 'source' => $file->source, 'destination' => $file->destination,
                 'source_key' => hash('sha256', $file->source), 'destination_key' => hash('sha256', $file->destination),
                 'format' => $file->format, 'default_mode' => $file->defaultMode, 'manifest' => $file->manifest,
@@ -55,6 +43,26 @@ final class BindingService
 
             return $plan;
         }, 3);
+    }
+
+    /** Validate every local constraint and capability before changing a remote source. */
+    public function preflightFile(User $actor, Server $server, FilePlan $file, string $templateSource): void
+    {
+        $this->lockServer($actor, $server, 'file.update');
+        $existing = ManagedFile::query()->find($file->fileId);
+        if ($existing && $existing->server_id !== $server->id) {
+            throw new AuthorizationException('Secret access denied.');
+        }
+        $compiled = $this->compiler->compile(new TemplateDocument($templateSource, $file->format, $file->defaultMode, $file->manifest));
+        $this->authorizeManifest($actor, $server, $file->manifest);
+        $this->authorizeManifest($actor, $server, $existing?->manifest ?? []);
+        app(NodeCapabilityService::class)->assertCompatible($server->node);
+        $dummy = [];
+        foreach ($file->manifest as $entry) {
+            $dummy[$entry['secret_id']] = 'DUMMY_VALUE';
+        }
+        $this->compiler->render($compiled, $dummy);
+        $this->plans->validateFile($server, $file);
     }
 
     public function bindStartup(User $actor, Server $server, string $env, string $secretId): DesiredPlan

@@ -159,12 +159,19 @@ def main():
         environment = {"DB_DATABASE": "/workspace/.work/panel/database/bps-ui.sqlite",
                        "SESSION_DRIVER": "file", "APP_DEBUG": "false", "APP_INSTALLED": "true",
                        "APP_URL": "http://127.0.0.1:" + str(port)}
+        cache_id = hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
+        data_volume = "bps-dev-" + cache_id + "-ui-data"
+        run([DOCKER, "volume", "create", "--label", "better-pelican-secrets.dev=true", data_volume], stdout=subprocess.DEVNULL)
+        if subprocess.check_output([DOCKER, "volume", "inspect", "--format",
+                '{{index .Labels "better-pelican-secrets.dev"}}', data_volume], text=True).strip() != "true":
+            raise RuntimeError("Refusing an unlabelled UI data volume")
+        data_mount = ["--mount", "type=volume,source=" + data_volume + ",target=/bps-ui-data"]
         php_run(["php", "-d", "memory_limit=512M", "/workspace/tools/fixtures/panel-ui.php"],
-                app_env="local", env_overrides=environment)
+                app_env="local", env_overrides=environment, extra_docker_args=data_mount)
         name = "bps-ui-" + uuid.uuid4().hex[:12]
         php_run(["php", "-d", "memory_limit=512M", "-S", "0.0.0.0:8080", "-t", "public", "/workspace/tools/fixtures/ui-router.php"],
                 app_env="local", env_overrides=environment,
-                extra_docker_args=["--detach", "--name", name, "--publish", "127.0.0.1:" + str(port) + ":8080"])
+                extra_docker_args=[*data_mount, "--detach", "--name", name, "--publish", "127.0.0.1:" + str(port) + ":8080"])
         port = subprocess.check_output([DOCKER, "port", name, "8080/tcp"], text=True).strip().split(":")[-1]
         state = {"container": name, "url": "http://127.0.0.1:" + port}
         (ROOT / ".work/ui-fixture.json").write_text(json.dumps(state), encoding="utf-8")
@@ -179,6 +186,9 @@ def main():
         if label != "true":
             raise RuntimeError("Refusing to stop an unlabelled container")
         run([DOCKER, "stop", name])
+    elif command == "task13-check":
+        run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Filament", "tests/php/Templates", "tests/php/Plans"])
+        run([sys.executable, str(ROOT / "tools/dev.py"), "acceptance", "-k", "setup_flow"])
     elif command == "task12-check":
         run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Filament", "tests/php/Http", "tests/php/Secrets"])
     elif command == "task11-check":
