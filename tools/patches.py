@@ -76,6 +76,7 @@ def refresh(name=None):
 def format_paths():
     paths = [source.relative_to(OVERLAY).as_posix() for source in OVERLAY.rglob("*.go")] if OVERLAY.exists() else []
     paths += [path for path in git("diff", "--name-only", "HEAD", capture=True).stdout.decode().splitlines() if path.endswith(".go")]
+    paths += ["/workspace/" + source.relative_to(ROOT).as_posix() for source in (ROOT / "node/fixtures").rglob("*.go")]
     return sorted(set(paths))
 
 

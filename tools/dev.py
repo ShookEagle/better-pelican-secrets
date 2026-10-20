@@ -115,6 +115,7 @@ def go_run(arguments):
          "--mount", "type=bind,source=" + str(ROOT) + ",target=/workspace",
          *mounts, "--workdir", "/workspace/.work/wings",
          "--env", "GOTOOLCHAIN=local", "--env", "BPS_PROTOCOL_FIXTURES=/workspace/protocol/fixtures",
+         "--tmpfs", "/run/better-pelican-secrets:rw,noexec,nosuid,nodev,mode=0700,size=96m",
          image, *executable])
     if arguments and arguments[0] == "fmt":
         patches.copy_formatted_overlay()
@@ -146,6 +147,9 @@ def main():
         php_run(["php", "-d", "memory_limit=512M", "vendor/bin/phpunit", "-c", "/workspace/tests/phpunit.xml", *test_arguments])
     elif command == "pint":
         php_run(["php", "vendor/bin/pint", "/workspace/plugins", "/workspace/tests/php", *arguments])
+    elif command == "task9-check":
+        run([sys.executable, str(ROOT / "tools/dev.py"), "go", "./secrets"])
+        run([sys.executable, str(ROOT / "tools/dev.py"), "acceptance", "-k", "runtime_files"])
     elif command == "task8-check":
         run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Node"])
         run([sys.executable, str(ROOT / "tools/dev.py"), "go", "./remote", "-run", "TestSecretRemote"])

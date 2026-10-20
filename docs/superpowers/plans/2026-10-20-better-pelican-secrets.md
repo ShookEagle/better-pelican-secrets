@@ -144,7 +144,7 @@ Produce Go structs `Plan`, `FilePlan`, `StartupPlan`, `Bundle`, `AppliedReport`,
 
 **Interfaces:** `TemplateDocument(string $source, string $format, string $defaultMode, array $manifest)`; `TemplateCompiler::compile(TemplateDocument $document): CompiledTemplate`; `render(CompiledTemplate $template, array $valuesBySecretId): string`; `PreviewService::preview(User $actor, int $serverId, TemplateDocument $document): string` always uses deterministic dummy values. Compiled tokens reference immutable secret IDs, mode, and source spans; they never contain live values.
 
-- [x] **Step 1:** Write `test_shared_rendering_vectors`, `test_preview_never_reads_secret_store`, `test_line_endings_and_encoding`, and `test_repeated_tokens_hit_expanded_budget`. Assert decoded JSON/YAML equals `"quote\" slash\\ dollar$ line\né›ª"`, raw inserted token-looking text is not rescanned, CRLF outside tokens is preserved, an initial UTF-8 BOM is preserved only for text and rejected for structured outputs, and invalid UTF-8 is rejected. Dotenv vectors are read back with locked phpdotenv; reject unsupported multiline representations rather than inventing a dialect.
+- [x] **Step 1:** Write `test_shared_rendering_vectors`, `test_preview_never_reads_secret_store`, `test_line_endings_and_encoding`, and `test_repeated_tokens_hit_expanded_budget`. Assert decoded JSON/YAML equals `"quote\" slash\\ dollar$ line\nÃ©â€ºÂª"`, raw inserted token-looking text is not rescanned, CRLF outside tokens is preserved, an initial UTF-8 BOM is preserved only for text and rejected for structured outputs, and invalid UTF-8 is rejected. Dotenv vectors are read back with locked phpdotenv; reject unsupported multiline representations rather than inventing a dialect.
 
   ```php
   $this->assertSame($vector['expected_output'], $rendered);
@@ -214,17 +214,17 @@ Produce Go structs `Plan`, `FilePlan`, `StartupPlan`, `Bundle`, `AppliedReport`,
 
 **Interfaces:** `Preparer.Prepare(ctx context.Context, plan Plan, bundle Bundle, root *os.Root, mapping DataMapping, identity GameIdentity) (*PreparedStart,error)`; `PreparedStart` privately owns overrides, mount sources, attempt/revision, source digests, and cleanup. Expose `Mounts() []RuntimeMount`, `Environment() map[string]string`, `Report() AppliedReport`, `Close() error`; none serialize plaintext. Define `RuntimeMount{Source string, Destination string, ReadOnly bool}`, `DataMapping{HostRoot string, ContainerRoot string}`, and `GameIdentity{ContainerUID uint32, ContainerGID uint32, HostUID uint32, HostGID uint32}` in `preparer.go`; identity includes Docker user-namespace translation.
 
-- [ ] **Step 1:** Add `TestTraversalSymlinkSwapAndSpecialFiles`, `TestDuplicateAndOverlappingDestinations`, `TestSourceChangesRetryOnce`, `TestAggregateOutputBudget`, and live `test_game_uid_reads_private_tmpfs_mount`. Assert traversal/reserved roots fail, `/game/...` maps only through configured roots, root directory mode is 0700, file mode is 0400 for the effective game owner, and the normal server volume never receives the fixture value.
+- [x] **Step 1:** Add `TestTraversalSymlinkSwapAndSpecialFiles`, `TestDuplicateAndOverlappingDestinations`, `TestSourceChangesRetryOnce`, `TestAggregateOutputBudget`, and live `test_game_uid_reads_private_tmpfs_mount`. Assert traversal/reserved roots fail, `/game/...` maps only through configured roots, root directory mode is 0700, file mode is 0400 for the effective game owner, and the normal server volume never receives the fixture value.
 
   ```go
   require.True(t, mounts[0].ReadOnly)
   require.Equal(t, os.FileMode(0400), runtimeFileInfo.Mode().Perm())
   require.NotContains(t, string(sourceBytes), "fixture-secret")
   ```
-- [ ] **Step 2:** Run `./tools/dev go ./secrets -run 'TestTraversal|TestDuplicate|TestSource|TestAggregate|TestRuntime'` and `./tools/dev acceptance -k runtime_files`; expected missing preparation.
-- [ ] **Step 3:** Implement Linux descriptor-relative safe reads using `unix.Openat2` beneath-root/no-symlink checks and `os.Root` ownership, bounded snapshots/digests, Task 6 rendering, and a private `/run/better-pelican-secrets/{server_uuid}/{attempt_id}` tmpfs area outside data volumes. Require working `openat2` (Linux 5.6 or newer) and return a compatibility error instead of weakening path checks on unsupported kernels. Validate tmpfs rather than silently using persistent storage. Resolve effective UID/GID; reject unsupported mappings instead of loosening host file modes. Recheck sources before mounting; exactly one retry means at most two snapshot attempts. Clean partial attempts on all errors and release references without logging buffers.
-- [ ] **Step 4:** Repeat tests. Expected: path-swap attack fails safely, second modification aborts start, and non-root game reads succeed while runtime files remain absent from source SFTP/backup traversal.
-- [ ] **Step 5:** Commit `feat: prepare private runtime mounts from safe snapshots`.
+- [x] **Step 2:** Run `./tools/dev go ./secrets -run 'TestTraversal|TestDuplicate|TestSource|TestAggregate|TestRuntime'` and `./tools/dev acceptance -k runtime_files`; expected missing preparation.
+- [x] **Step 3:** Implement Linux descriptor-relative safe reads using `unix.Openat2` beneath-root/no-symlink checks and `os.Root` ownership, bounded snapshots/digests, Task 6 rendering, and a private `/run/better-pelican-secrets/{server_uuid}/{attempt_id}` tmpfs area outside data volumes. Require working `openat2` (Linux 5.6 or newer) and return a compatibility error instead of weakening path checks on unsupported kernels. Validate tmpfs rather than silently using persistent storage. Resolve effective UID/GID; reject unsupported mappings instead of loosening host file modes. Recheck sources before mounting; exactly one retry means at most two snapshot attempts. Clean partial attempts on all errors and release references without logging buffers.
+- [x] **Step 4:** Repeat tests. Expected: path-swap attack fails safely, second modification aborts start, and non-root game reads succeed while runtime files remain absent from source SFTP/backup traversal.
+- [x] **Step 5:** Commit `feat: prepare private runtime mounts from safe snapshots`.
 
 ### Task 10: Apply a fresh start snapshot and redact controlled output
 
