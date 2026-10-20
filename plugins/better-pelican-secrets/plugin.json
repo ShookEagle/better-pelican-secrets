@@ -1,0 +1,18 @@
+{
+  "id": "better-pelican-secrets",
+  "name": "Better Pelican Secrets",
+  "author": "ShookEagle",
+  "version": "0.1.0",
+  "description": "Explicitly authorized server secrets with generic runtime configuration templates.",
+  "category": "plugin",
+  "url": "https://github.com/ShookEagle/better-pelican-secrets",
+  "namespace": "ShookEagle\\BetterPelicanSecrets",
+  "class": "BetterPelicanSecretsPlugin",
+  "panels": [
+    "admin",
+    "server"
+  ],
+  "panel_version": "1.0.0-rc.1",
+  "api_version": 1,
+  "composer_packages": []
+}

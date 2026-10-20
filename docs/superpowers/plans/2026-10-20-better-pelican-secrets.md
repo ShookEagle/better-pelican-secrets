@@ -73,17 +73,17 @@ All tasks follow red/green verification. A failure must be the intended missing 
 
 **Interfaces:** Consumes the pinned upstream commits. Produces the command wrapper above, a real installed plugin with `getId(): string`, `register(Filament\Panel $panel): void`, `boot(Filament\Panel $panel): void`, and the PHP test bootstrap. Manifest: version `0.1.0`, `api_version: 1`, strict `panel_version: 1.0.0-rc.1`, panels `admin` and `server`; omit installation-state `meta` from distributable manifests.
 
-- [ ] **Step 1:** Establish the runnable harness/bootstrap, then add `test_plugin_loads_in_real_application` and `test_runtime_mount_preserves_source`. Assert discovered plugin ID, registered provider, source bytes `{{secret:KEY}}`, container bytes `fixture-value`, denied runtime overwrite, unchanged SFTP/backup source bytes, and a recreated container seeing a second fixture value. Add `test_game_uid_can_read_under_game_mapping` for a non-root UID/GID and `/game` data mapping.
+- [x] **Step 1:** Establish the runnable harness/bootstrap, then add `test_plugin_loads_in_real_application` and `test_runtime_mount_preserves_source`. Assert discovered plugin ID, registered provider, source bytes `{{secret:KEY}}`, container bytes `fixture-value`, denied runtime overwrite, unchanged SFTP/backup source bytes, and a recreated container seeing a second fixture value. Add `test_game_uid_can_read_under_game_mapping` for a non-root UID/GID and `/game` data mapping.
 
   ```python
   self.assertEqual(source_bytes, b"{{secret:KEY}}")
   self.assertEqual(container_bytes, b"fixture-value")
   self.assertNotEqual(write_attempt.returncode, 0)
   ```
-- [ ] **Step 2:** Run `./tools/dev prepare`, then `./tools/dev php tests/php/Compatibility/IntegrationSeamsTest.php` and `./tools/dev acceptance -k mount_contract`. Establish dependencies first; record the subsequent expected failures as missing registration/mount behavior.
-- [ ] **Step 3:** Implement the minimal plugin/harness and mount experiment. Materialize exact commits, install Composer from its lock, pin harness images by resolved digest, and expose services only to the disposable test network/loopback. PHPUnit explicitly registers the plugin provider because upstream skips plugin loading in tests; the separate real-application check proves discovery without that shortcut. Verify `PluginService` service replacement can veto `disablePlugin` and `uninstallPlugin` before destructive work, and `ServerConfigurationStructureService` can be decorated. This gate must pass before building on those seams; otherwise report the exact incompatibility for design amendment rather than adding an unapproved Panel-core patch.
-- [ ] **Step 4:** Repeat both commands. Expected: green checks for real loading, lifecycle seam interception, read-only overlay precedence, UID access, and container replacement. Document results and image digests, not hypothetical compatibility.
-- [ ] **Step 5:** Commit `test: establish pinned Pelican integration and mount harness`.
+- [x] **Step 2:** Run `./tools/dev prepare`, then `./tools/dev php tests/php/Compatibility/IntegrationSeamsTest.php` and `./tools/dev acceptance -k mount_contract`. Establish dependencies first; record the subsequent expected failures as missing registration/mount behavior.
+- [x] **Step 3:** Implement the minimal plugin/harness and mount experiment. Materialize exact commits, install Composer from its lock, pin harness images by resolved digest, and expose services only to the disposable test network/loopback. PHPUnit explicitly registers the plugin provider because upstream skips plugin loading in tests; the separate real-application check proves discovery without that shortcut. Verify `PluginService` service replacement can veto `disablePlugin` and `uninstallPlugin` before destructive work, and `ServerConfigurationStructureService` can be decorated. This gate must pass before building on those seams; otherwise report the exact incompatibility for design amendment rather than adding an unapproved Panel-core patch.
+- [x] **Step 4:** Repeat both commands. Expected: green checks for real loading, lifecycle seam interception, read-only overlay precedence, UID access, and container replacement. Document results and image digests, not hypothetical compatibility.
+- [x] **Step 5:** Commit `test: establish pinned Pelican integration and mount harness`.
 
 ### Task 2: Store encrypted versions and metadata-only audit events
 

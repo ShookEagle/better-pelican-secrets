@@ -49,6 +49,14 @@ class MountContractTests(unittest.TestCase):
         self.runtime = self.prefix + "-runtime"
         self.new_volume(self.data)
         self.new_volume(self.runtime, "--opt", "type=tmpfs", "--opt", "device=tmpfs", "--opt", "o=mode=0700")
+        # Keep the tmpfs mounted: its contents disappear when its last user exits.
+        keeper = self.prefix + "-keeper"
+        self.run_docker(
+            "run", "-d", "--name", keeper, "--label", "better-pelican-secrets.dev=true",
+            "--mount", "type=volume,source=" + self.runtime + ",target=/runtime",
+            self.image, "sleep", "600",
+        )
+        self.addCleanup(lambda: self.run_docker("rm", "-f", keeper, check=False))
         self.seed(self.data, "{{secret:KEY}}", "0644")
         self.seed(self.runtime, "fixture-value", "0400")
         mountpoint = self.run_docker("volume", "inspect", "--format", "{{.Mountpoint}}", self.runtime).stdout.decode().strip()
@@ -101,7 +109,7 @@ class MountContractTests(unittest.TestCase):
         self.assertEqual(self.run_docker("start", "--attach", name).stdout, b"1000\n1000\nfixture-value")
 
     def test_runtime_mount_is_readonly(self):
-        name, _ = self.container("printf changed > /game/config.json")
+        name, _ = self.container("chmod u+w /game/config.json && printf changed > /game/config.json")
         self.run_docker("start", "--attach", name, check=False)
         exit_code = self.run_docker("inspect", "--format", "{{.State.ExitCode}}", name).stdout.strip()
         self.assertNotEqual(exit_code, b"0")

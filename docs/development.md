@@ -1,31 +1,36 @@
 # Development environment
 
-Implementation follows [the approved plan](superpowers/plans/2026-10-20-better-pelican-secrets.md). Task 1 is in progress; the plugin and runtime integration have not passed their feasibility gate.
+Implementation follows [the approved plan](superpowers/plans/2026-10-20-better-pelican-secrets.md). The initial feasibility gate exercises the native plugin installer/loader and Linux Docker mounts. Later tasks qualify the complete Panel/Wings integration.
 
 ## Pinned inputs
 
-`upstream.lock.json` records the exact Panel and Wings rc.1 source commits. Ignored checkouts are materialized under `.work/panel` and `.work/wings`; they are development inputs, not release source.
+`upstream.lock.json` records exact Panel and Wings rc.1 commits. `tools/dev materialize` verifies checkout identities under ignored `.work/panel` and `.work/wings`. It stamps Panel's release version using the pinned upstream `.github/actions/stamp-version/action.yml` semantics: a raw release-tag checkout still identifies itself as canary. This is a disposable build step, not a distributed Panel patch.
 
-`dev/images.lock.json` records immutable Docker Hub image digests, resolved from the official registry. The mount-contract suite uses only the pinned BusyBox fixture image.
+`dev/images.lock.json` contains immutable official image digests. PHP 8.4, Composer, and Node 22/Yarn support the native installer. Dependencies are installed from upstream's Composer lock. Worktree-specific Docker volumes cache vendor/node_modules to avoid Windows shared-filesystem extraction overhead. Download archives remain under ignored `.work/composer-cache`.
 
-## Runtime prerequisites
+## Run the harness
 
-Use a Linux Docker engine. On this Windows PC, WSL 2.7.13 has been installed and Virtual Machine Platform enabled. Windows requires a reboot before that feature becomes active. Docker Desktop 4.96.0 is installed in per-user mode with its WSL2 backend; its CLI and Compose version commands pass. The Linux engine still needs verification after reboot.
-
-Installation status is not evidence that the engine works. After reboot, verify `docker info` reports Linux and run the live tests before proceeding to later plan tasks. No test may silently skip because Docker is unavailable.
-
-## Initial mount-contract checks
+Use Git Bash on Windows or Bash on Linux, Python 3, Git, and a Linux Docker engine. Docker Desktop with WSL2 has been verified on this PC. Set `BPS_PYTHON` and `BPS_DOCKER` to executable paths if they are absent from PATH; Windows Store Python aliases are insufficient.
 
 Run from the worktree root:
 
 ```sh
-python3 -m unittest discover -s tests/acceptance -p test_mount_contract.py -v
+./tools/dev prepare
+./tools/dev install-fixture
+./tools/dev php tests/php/Compatibility/IntegrationSeamsTest.php
+./tools/dev acceptance
 ```
 
-On Windows, use a real Python interpreter; the Microsoft Store command aliases may not be installed. Set `BPS_DOCKER` to the full Docker CLI path if this terminal's PATH predates installation.
+`install-fixture` migrates only the disposable SQLite database and runs Pelican's native plugin installation, including its asset build. Installation metadata is retained only in the ignored installed copy. The distributable manifest has no installation-state `meta`.
 
-The suite uses synthetic values. It creates randomly named, labelled volumes and containers and removes only those resources. It checks source-template preservation, archive inputs, read-only runtime overlays, a non-root game UID/GID, the /game mapping, and recreation with a new runtime value. It is a low-level Docker characterization; real Panel loading, node integration, and SFTP/backup qualification remain required by Task 1 and later tasks.
+`./tools/dev task1-check` runs the four PHP compatibility checks and five acceptance checks together. `./tools/dev pint --test` checks PHP style. The portable equivalent of the wrapper is `python tools/dev.py <command>`.
 
-## Resume point
+## What the initial gate proves
 
-The task ledger and Task 1 brief live in this plan's ignored `.superpowers/sdd/2026-10-20-better-pelican-secrets/` workspace. Resume Task 1 from that ledger after Windows restarts. Do not mark Task 1 complete or start Task 2 until its live mount and real plugin-loading checks pass.
+The real-application probe runs outside APP_ENV=testing, asserts the exact release version, and finds the enabled plugin/provider on both admin and server panels. Separate PHP tests prove provider registration and native service replacement for lifecycle vetoes and server configuration decoration.
+
+Live Docker checks use synthetic values and random, labelled resources, removing only their own containers and volumes. They verify a non-root game UID/GID, /game mapping, read-only runtime bind overlays, unchanged source-template bytes and archive inputs, and a recreated container reading a changed runtime value. A keeper container holds the private tmpfs throughout each experiment.
+
+These mount checks characterize the underlying source-volume contract; later tasks test Wings SFTP/backup behavior and the full start lifecycle. Missing Docker or another prerequisite is an error, never a skipped successful check.
+
+The ignored execution ledger is under `.superpowers/sdd/2026-10-20-better-pelican-secrets/`. Resume from its first unfinished task.
