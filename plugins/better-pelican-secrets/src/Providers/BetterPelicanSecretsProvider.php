@@ -6,13 +6,17 @@ use App\Enums\TablerIcon;
 use App\Filament\Admin\Resources\Roles\RoleResource;
 use App\Filament\Admin\Resources\Users\UserResource;
 use App\Models\Role;
+use App\Models\ServerVariable;
 use App\Models\Subuser;
 use App\Models\User;
 use App\Services\Servers\GetUserPermissionsService;
+use App\Services\Servers\StartupModificationService;
 use App\Services\Subusers\SubuserCreationService;
 use App\Services\Subusers\SubuserUpdateService;
 use Filament\Schemas\Schema;
 use Illuminate\Support\ServiceProvider;
+use ShookEagle\BetterPelicanSecrets\Plans\ManagedStartupModificationService;
+use ShookEagle\BetterPelicanSecrets\Plans\ManagedVariableGuard;
 use ShookEagle\BetterPelicanSecrets\Secrets\NativeGrantGuard;
 use ShookEagle\BetterPelicanSecrets\Secrets\NativeRoleApiGuard;
 use ShookEagle\BetterPelicanSecrets\Secrets\NativeSubuserCreationService;
@@ -26,6 +30,8 @@ final class BetterPelicanSecretsProvider extends ServiceProvider
 
     public function register(): void
     {
+        $this->app->singleton(ManagedVariableGuard::class);
+        $this->app->bind(StartupModificationService::class, ManagedStartupModificationService::class);
         $this->app->bind(SubuserCreationService::class, NativeSubuserCreationService::class);
         $this->app->bind(SubuserUpdateService::class, NativeSubuserUpdateService::class);
         $this->app->bind(GetUserPermissionsService::class, NativeUserPermissionsService::class);
@@ -33,6 +39,8 @@ final class BetterPelicanSecretsProvider extends ServiceProvider
 
     public function boot(): void
     {
+        ServerVariable::saving(fn (ServerVariable $variable) => app(ManagedVariableGuard::class)->assertModelWritable($variable));
+        ServerVariable::deleting(fn (ServerVariable $variable) => app(ManagedVariableGuard::class)->assertModelWritable($variable, true));
         $operations = array_column(SecretOperation::cases(), 'value');
         Subuser::registerCustomPermissions('secrets', $operations, icon: TablerIcon::Key, hidden: false);
         Role::registerCustomPermissions(['secrets' => $operations]);

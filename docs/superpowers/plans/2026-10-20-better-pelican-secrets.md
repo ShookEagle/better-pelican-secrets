@@ -178,17 +178,17 @@ Produce Go structs `Plan`, `FilePlan`, `StartupPlan`, `Bundle`, `AppliedReport`,
 
 **Interfaces:** `BindingService::saveFile(User $actor, Server $server, FilePlan $file, string $templateSource): DesiredPlan`; `bindStartup(User $actor, Server $server, string $env, string $secretId): DesiredPlan`; `removeFile(User $actor, Server $server, string $fileId): DesiredPlan`; `unbindStartup(User $actor, Server $server, string $env): DesiredPlan`; `deleteSecret(User $actor, Server $server, string $secretId): void`. Deletion authorizes `delete`, locks/checks all bindings, and only then calls the internal store. `PlanService::current(Server $server): DesiredPlan`; `snapshot(Server $server, string $expectedRevision): DesiredPlan`; `markSecretChanged(string $secretId): void`. `ManagedVariableGuard::assertWritable(Server $server, string $env): void` blocks ordinary writes while bound. The caller supplies source text for validation; this service saves the approved plan, not the remote file. The node independently checks the actual source before start.
 
-- [ ] **Step 1:** Add `test_bind_requires_all_secret_and_destination_rights`, `test_bound_variable_never_stores_value`, `test_rotation_pins_one_consistent_revision`, and `test_bound_secret_cannot_be_deleted`. Exercise native Startup Livewire, client/application API, and model-level writes; stale/default `server_variables` values are removed only by explicit migration, never copied silently into a binding.
+- [x] **Step 1:** Add `test_bind_requires_all_secret_and_destination_rights`, `test_bound_variable_never_stores_value`, `test_rotation_pins_one_consistent_revision`, and `test_bound_secret_cannot_be_deleted`. Exercise native Startup Livewire, client/application API, and model-level writes; stale/default `server_variables` values are removed only by explicit migration, never copied silently into a binding.
 
   ```php
   $this->assertNotSame($before->revision, $after->revision);
   $this->assertStringNotContainsString('fixture-secret', json_encode($after));
   $daemon->shouldNotHaveReceived('power');
   ```
-- [ ] **Step 2:** Run `./tools/dev php tests/php/Plans`; expect missing binding/guard behavior.
-- [ ] **Step 3:** Implement transactional monotonic desired revisions, locking current version references, startup-name existence checks against the egg, file/manifest validation through Task 5, and normal destination edit permission checks. SecretStore replacement notifies PlanService after commit. Blocking normal writes must work across native forms/APIs and other plugin model writes; own migration paths use a narrow explicit bypass inside the transaction.
-- [ ] **Step 4:** Repeat tests. Expected: one complete snapshot, no value in plan/ordinary variables, unbind first before deletion, and no power-action dispatch on save.
-- [ ] **Step 5:** Commit `feat: bind secrets to versioned file and startup plans`.
+- [x] **Step 2:** Run `./tools/dev php tests/php/Plans`; expect missing binding/guard behavior.
+- [x] **Step 3:** Implement transactional monotonic desired revisions, locking current version references, startup-name existence checks against the egg, file/manifest validation through Task 5, and normal destination edit permission checks. SecretStore replacement notifies PlanService after commit. Blocking normal writes must work across native forms/APIs and other plugin model writes; own migration paths use a narrow explicit bypass inside the transaction.
+- [x] **Step 4:** Repeat tests. Expected: one complete snapshot, no value in plan/ordinary variables, unbind first before deletion, and no power-action dispatch on save.
+- [x] **Step 5:** Commit `feat: bind secrets to versioned file and startup plans`.
 
 ### Task 8: Expose authenticated node bundles and capability gates
 

@@ -8,6 +8,7 @@ use DomainException;
 use Illuminate\Contracts\Encryption\Encrypter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use ShookEagle\BetterPelicanSecrets\Plans\PlanService;
 use ShookEagle\BetterPelicanSecrets\Secrets\Models\Secret;
 use ShookEagle\BetterPelicanSecrets\Secrets\Models\SecretVersion;
 use Throwable;
@@ -42,7 +43,7 @@ final class SecretStore
     public function replace(string $secretId, #[\SensitiveParameter] SecretValue $value, User $actor): SecretVersionRef
     {
         try {
-            return DB::transaction(function () use ($secretId, $value, $actor) {
+            $reference = DB::transaction(function () use ($secretId, $value, $actor) {
                 $secret = Secret::query()->lockForUpdate()->findOrFail($secretId);
                 $version = $secret->current_version + 1;
                 $this->writeVersion($secret, $version, $value, $actor);
@@ -51,6 +52,15 @@ final class SecretStore
 
                 return new SecretVersionRef($secret->id, $version);
             }, 3);
+            DB::afterCommit(static function () use ($secretId) {
+                try {
+                    app(PlanService::class)->markSecretChanged($secretId);
+                } catch (Throwable) {
+                    // current()/snapshot() reconcile authoritative versions before any delivery.
+                }
+            });
+
+            return $reference;
         } catch (Throwable) {
             throw new DomainException('Secret replacement failed.');
         }
