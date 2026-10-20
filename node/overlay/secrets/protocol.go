@@ -254,10 +254,10 @@ func validatePlan(p Plan) error {
 	}
 	envs := map[string]bool{}
 	for _, startup := range p.Startup {
-		if !envPattern.MatchString(startup.Env) || envs[startup.Env] || !ids[startup.SecretID] {
+		if !envPattern.MatchString(startup.Env) || envs[strings.ToUpper(startup.Env)] || !ids[startup.SecretID] {
 			return invalid()
 		}
-		envs[startup.Env], used[startup.SecretID] = true, true
+		envs[strings.ToUpper(startup.Env)], used[startup.SecretID] = true, true
 	}
 	if len(used) != len(ids) {
 		return invalid()

@@ -217,3 +217,17 @@ func TestRuntimeLastRecheckRetriesAndCleansPartialAttempt(t *testing.T) {
 		})
 	}
 }
+
+func TestRuntimeStartupNamesFollowNativeUppercase(t *testing.T) {
+	p, plan, bundle, root, mapping, id := preparationFixture(t)
+	plan.Startup[0].Env = "rcon_password"
+	bundle.Plan = plan
+	prepared, err := p.Prepare(context.Background(), plan, bundle, root, mapping, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer prepared.Close()
+	if prepared.Environment()["RCON_PASSWORD"] != "fixture-secret" {
+		t.Fatal("native uppercase startup name lost")
+	}
+}

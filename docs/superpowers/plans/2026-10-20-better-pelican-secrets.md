@@ -232,17 +232,17 @@ Produce Go structs `Plan`, `FilePlan`, `StartupPlan`, `Bundle`, `AppliedReport`,
 
 **Interfaces:** `Server.prepareSecretStart(ctx context.Context) (*secrets.PreparedStart,error)` runs inside the existing power lock before any protected start. `docker.Environment.SetSecretRuntime(prepared *secrets.PreparedStart) error` stores ephemeral overrides separately from persisted configuration and implements `secrets.RuntimeConsumer`, an interface declared in `secrets/runtime.go` with that method. The server uses a checked interface assertion; an unsupported environment rejects a protected start. `secrets.NewRedactor(destination io.Writer, values []string) io.WriteCloser` is a streaming literal-value sanitizer; empty values are excluded from match patterns. Every successful/failed attempt emits Task 8's metadata-only report.
 
-- [ ] **Step 1:** Add `TestStartAndRestartAlwaysPrepare`, `TestStoppedContainerGetsNewEnvAndMounts`, `TestFailureCannotStartWithStaleSnapshot`, `TestConcurrentStartsSharePowerLock`, and `TestRedactorHandlesChunksAndOverlappingValues`. Live `test_rotate_without_restart_then_apply` asserts no restart after save, old value while running, new value after normal restart, reference-only cached configuration, and read-only runtime files.
+- [x] **Step 1:** Add `TestStartAndRestartAlwaysPrepare`, `TestStoppedContainerGetsNewEnvAndMounts`, `TestFailureCannotStartWithStaleSnapshot`, `TestConcurrentStartsSharePowerLock`, and `TestRedactorHandlesChunksAndOverlappingValues`. Live `test_rotate_without_restart_then_apply` asserts no restart after save, old value while running, new value after normal restart, reference-only cached configuration, and read-only runtime files.
 
   ```go
   require.Equal(t, 0, startCallsAfterSave)
   require.Equal(t, "second-value", recreatedContainerEnv["RCON_PASSWORD"])
   require.NotContains(t, controlledOutput.String(), "fixture-secret")
   ```
-- [ ] **Step 2:** Run `./tools/dev go ./server ./environment/docker ./secrets -run 'TestSecret|TestStart|TestStopped|TestFailure|TestConcurrent|TestRedactor'` and `./tools/dev acceptance -k secret_start`; expected absent lifecycle integration.
-- [ ] **Step 3:** Integrate prepare after latest config sync but before container creation/start on both start/restart paths. Recreate a stopped container whenever protected material changes; never mutate serialized environment/mount config with values. Pass merged copies only to Docker creation. Report applied only after successful Docker start; newer desired revisions stay pending. Literal redaction occurs before Wings-controlled logging/websocket/history delivery for prepared starts, buffers partial matches across chunks, and is explicitly best effort for application output. A missing redaction inventory after reattach must not be advertised as guaranteed redaction. Preserve ordinary developer code/console permissions.
-- [ ] **Step 4:** Repeat Go/live tests, then upstream `./tools/dev go ./server ./environment/docker` regressions. Expected preserved ordinary power behavior and no stale snapshot fallback or premature applied state.
-- [ ] **Step 5:** Commit `feat: apply fresh runtime secrets on every protected start`.
+- [x] **Step 2:** Run `./tools/dev go ./server ./environment/docker ./secrets -run 'TestSecret|TestStart|TestStopped|TestFailure|TestConcurrent|TestRedactor'` and `./tools/dev acceptance -k secret_start`; expected absent lifecycle integration.
+- [x] **Step 3:** Integrate prepare after latest config sync but before container creation/start on both start/restart paths. Recreate a stopped container whenever protected material changes; never mutate serialized environment/mount config with values. Pass merged copies only to Docker creation. Report applied only after successful Docker start; newer desired revisions stay pending. Literal redaction occurs before Wings-controlled logging/websocket/history delivery for prepared starts, buffers partial matches across chunks, and is explicitly best effort for application output. A missing redaction inventory after reattach must not be advertised as guaranteed redaction. Preserve ordinary developer code/console permissions.
+- [x] **Step 4:** Repeat Go/live tests, then upstream `./tools/dev go ./server ./environment/docker` regressions. Expected preserved ordinary power behavior and no stale snapshot fallback or premature applied state.
+- [x] **Step 5:** Commit `feat: apply fresh runtime secrets on every protected start`.
 
 ### Task 11: Expose source-template editing and truthful dirty status
 

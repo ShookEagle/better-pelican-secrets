@@ -147,6 +147,10 @@ def main():
         php_run(["php", "-d", "memory_limit=512M", "vendor/bin/phpunit", "-c", "/workspace/tests/phpunit.xml", *test_arguments])
     elif command == "pint":
         php_run(["php", "vendor/bin/pint", "/workspace/plugins", "/workspace/tests/php", *arguments])
+    elif command == "task10-check":
+        run([sys.executable, str(ROOT / "tools/dev.py"), "go", "./server", "./environment/docker", "./secrets"])
+        run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Node/ProtocolTest.php"])
+        run([sys.executable, str(ROOT / "tools/dev.py"), "acceptance", "-k", "secret_start"])
     elif command == "task9-check":
         run([sys.executable, str(ROOT / "tools/dev.py"), "go", "./secrets"])
         run([sys.executable, str(ROOT / "tools/dev.py"), "acceptance", "-k", "runtime_files"])
@@ -165,6 +169,7 @@ def main():
         run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Compatibility/IntegrationSeamsTest.php"])
         run([sys.executable, str(ROOT / "tools/dev.py"), "acceptance"])
     elif command == "acceptance":
+        materialize()
         run([sys.executable, "-m", "unittest", "discover", "-s", "tests/acceptance",
              "-p", "test_*.py", "-v", *arguments], env={**os.environ, "BPS_DOCKER": DOCKER})
     elif command == "install-fixture":

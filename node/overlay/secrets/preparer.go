@@ -45,6 +45,8 @@ type Preparer struct {
 }
 type PreparedStart struct{ state *preparedState }
 type preparedState struct {
+	values      []string
+	mapping     DataMapping
 	mu          sync.Mutex
 	mounts      []RuntimeMount
 	environment map[string]string
@@ -100,6 +102,7 @@ func (p PreparedStart) Close() error {
 	}
 	p.state.mu.Lock()
 	defer p.state.mu.Unlock()
+	p.state.values = nil
 	p.state.environment = nil
 	p.state.mounts = nil
 	if p.state.area != nil {
@@ -218,7 +221,7 @@ func (p *Preparer) Prepare(ctx context.Context, plan Plan, bundle Bundle, root *
 		if err != nil {
 			return nil, err
 		}
-		prepared := &PreparedStart{state: &preparedState{area: area, environment: map[string]string{}, report: AppliedReport{
+		prepared := &PreparedStart{state: &preparedState{mapping: mapping, area: area, environment: map[string]string{}, report: AppliedReport{
 			Protocol: 1, ServerUUID: plan.ServerUUID, Kind: "applied", AttemptID: bundle.AttemptID,
 			Revision: plan.Revision, SourceDigests: digests, Versions: append([]VersionRef{}, plan.Versions...),
 		}}}
@@ -262,8 +265,11 @@ func (p *Preparer) Prepare(ctx context.Context, plan Plan, bundle Bundle, root *
 			prepared.Close()
 			return nil, err
 		}
+		for _, value := range bundle.values {
+			prepared.state.values = append(prepared.state.values, value)
+		}
 		for _, binding := range plan.Startup {
-			prepared.state.environment[binding.Env] = bundle.values[binding.SecretID]
+			prepared.state.environment[strings.ToUpper(binding.Env)] = bundle.values[binding.SecretID]
 		}
 		if ctx.Err() != nil {
 			prepared.Close()
