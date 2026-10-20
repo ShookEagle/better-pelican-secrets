@@ -12,6 +12,9 @@ import (
 	"unicode/utf8"
 )
 
+const BaseWingsCommit = "7b489da7b8196d0b4baef3e2db062c06d743e2f9"
+const PanelBaseVersion = "1.0.0-rc.1"
+
 const MaxBundleBytes int64 = 16 * 1024 * 1024
 const MaxRenderedBytes int64 = 64 * 1024 * 1024
 
@@ -106,6 +109,9 @@ func DecodePlan(data []byte) (Plan, error) {
 	}
 	if err := validatePlan(plan); err != nil {
 		return Plan{}, err
+	}
+	if int64(len(data)) > plan.Limits.BundleBytes {
+		return Plan{}, errors.New("limit_exceeded")
 	}
 	return plan, nil
 }
@@ -491,4 +497,48 @@ func validUnicodeEscapes(data []byte) bool {
 		}
 	}
 	return true
+}
+
+func ValidateRequestIdentity(uuid, revision, attemptID string) error {
+	if err := validateIdentity(1, uuid, revision); err != nil {
+		return err
+	}
+	if !uuidPattern.MatchString(attemptID) {
+		return invalid()
+	}
+	return nil
+}
+
+func IsErrorCode(code string) bool { return allowedError(code) }
+
+func EncodeReport(report AppliedReport) ([]byte, error) {
+	if err := validateIdentity(report.Protocol, report.ServerUUID, report.Revision); err != nil {
+		return nil, err
+	}
+	if !uuidPattern.MatchString(report.AttemptID) || report.SourceDigests == nil || len(report.SourceDigests) > 256 {
+		return nil, invalid()
+	}
+	if _, err := validateVersions(report.Versions); err != nil {
+		return nil, err
+	}
+	for id, digest := range report.SourceDigests {
+		if !uuidPattern.MatchString(id) || !digestPattern.MatchString(digest) {
+			return nil, invalid()
+		}
+	}
+	if report.Kind == "failed" {
+		if report.ErrorCode == nil || !allowedError(*report.ErrorCode) {
+			return nil, invalid()
+		}
+	} else if (report.Kind != "applied" && report.Kind != "source-dirty") || report.ErrorCode != nil {
+		return nil, invalid()
+	}
+	data, err := json.Marshal(report)
+	if err != nil {
+		return nil, invalid()
+	}
+	if int64(len(data)) > MaxBundleBytes {
+		return nil, errors.New("limit_exceeded")
+	}
+	return data, nil
 }

@@ -6,6 +6,7 @@ use App\Models\Server;
 use App\Models\User;
 use App\Services\Servers\GetUserPermissionsService;
 use Illuminate\Auth\Access\AuthorizationException;
+use ShookEagle\BetterPelicanSecrets\Node\NodeCapabilityService;
 
 final class NativeUserPermissionsService extends GetUserPermissionsService
 {
@@ -21,6 +22,6 @@ final class NativeUserPermissionsService extends GetUserPermissionsService
             }
         }
 
-        return array_values(array_unique($permissions));
+        return app(NodeCapabilityService::class)->filterSocketPermissions($server, array_values(array_unique($permissions)));
     }
 }

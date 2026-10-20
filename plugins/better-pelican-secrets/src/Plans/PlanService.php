@@ -89,7 +89,7 @@ final class PlanService
             $versions[] = new SecretVersionRef($id, $secrets[$id]->current_version);
         }
 
-        return Protocol::decodePlan((new DesiredPlan(1, $server->uuid, $revision, $versions, $files, $startup, Protocol::LIMITS))->toWire());
+        return Protocol::decodePlan((new DesiredPlan(1, $server->uuid, $revision, $versions, $files, $startup, array_replace(Protocol::LIMITS, config('better-pelican-secrets.limits', []))))->toWire());
     }
 
     private function persist(Server $server, DesiredPlan $candidate): DesiredPlan

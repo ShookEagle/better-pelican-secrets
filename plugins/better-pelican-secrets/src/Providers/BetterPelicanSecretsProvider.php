@@ -6,15 +6,22 @@ use App\Enums\TablerIcon;
 use App\Filament\Admin\Resources\Roles\RoleResource;
 use App\Filament\Admin\Resources\Users\UserResource;
 use App\Models\Role;
+use App\Models\Server;
+use App\Models\ServerTransfer;
 use App\Models\ServerVariable;
 use App\Models\Subuser;
 use App\Models\User;
+use App\Repositories\Daemon\DaemonServerRepository;
 use App\Services\Servers\GetUserPermissionsService;
+use App\Services\Servers\ServerConfigurationStructureService;
 use App\Services\Servers\StartupModificationService;
 use App\Services\Subusers\SubuserCreationService;
 use App\Services\Subusers\SubuserUpdateService;
 use Filament\Schemas\Schema;
 use Illuminate\Support\ServiceProvider;
+use ShookEagle\BetterPelicanSecrets\Node\CompatibleDaemonServerRepository;
+use ShookEagle\BetterPelicanSecrets\Node\NodeCapabilityService;
+use ShookEagle\BetterPelicanSecrets\Node\ReferenceConfigurationService;
 use ShookEagle\BetterPelicanSecrets\Plans\ManagedStartupModificationService;
 use ShookEagle\BetterPelicanSecrets\Plans\ManagedVariableGuard;
 use ShookEagle\BetterPelicanSecrets\Secrets\NativeGrantGuard;
@@ -23,6 +30,7 @@ use ShookEagle\BetterPelicanSecrets\Secrets\NativeSubuserCreationService;
 use ShookEagle\BetterPelicanSecrets\Secrets\NativeSubuserUpdateService;
 use ShookEagle\BetterPelicanSecrets\Secrets\NativeUserPermissionsService;
 use ShookEagle\BetterPelicanSecrets\Secrets\SecretOperation;
+use ShookEagle\BetterPelicanSecrets\Templates\TemplateCompiler;
 
 final class BetterPelicanSecretsProvider extends ServiceProvider
 {
@@ -30,6 +38,14 @@ final class BetterPelicanSecretsProvider extends ServiceProvider
 
     public function register(): void
     {
+        $config = dirname(__DIR__, 2) . '/config/secrets.php';
+        $this->mergeConfigFrom($config, 'better-pelican-secrets');
+        $this->publishes([$config => config_path('better-pelican-secrets.php')], 'better-pelican-secrets-config');
+        $this->app->bind(TemplateCompiler::class,
+            fn () => new TemplateCompiler(config('better-pelican-secrets.limits', [])));
+        $this->app->bind(DaemonServerRepository::class, CompatibleDaemonServerRepository::class);
+        $this->app->bind(ServerConfigurationStructureService::class, ReferenceConfigurationService::class);
+
         $this->app->singleton(ManagedVariableGuard::class);
         $this->app->bind(StartupModificationService::class, ManagedStartupModificationService::class);
         $this->app->bind(SubuserCreationService::class, NativeSubuserCreationService::class);
@@ -39,6 +55,10 @@ final class BetterPelicanSecretsProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Server::updating(fn (Server $server) => app(NodeCapabilityService::class)->guardServerMove($server));
+        ServerTransfer::creating(fn (ServerTransfer $transfer) => app(NodeCapabilityService::class)->guardTransfer($transfer));
+        $this->loadRoutesFrom(dirname(__DIR__, 2) . '/routes/node.php');
+
         ServerVariable::saving(fn (ServerVariable $variable) => app(ManagedVariableGuard::class)->assertModelWritable($variable));
         ServerVariable::deleting(fn (ServerVariable $variable) => app(ManagedVariableGuard::class)->assertModelWritable($variable, true));
         $operations = array_column(SecretOperation::cases(), 'value');

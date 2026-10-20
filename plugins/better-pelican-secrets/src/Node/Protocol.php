@@ -109,6 +109,10 @@ final class Protocol
             self::fail();
         }
 
+        if (strlen(json_encode($input, JSON_THROW_ON_ERROR)) > $limits['bundle_bytes']) {
+            self::fail('limit_exceeded');
+        }
+
         return new DesiredPlan(1, $input['server_uuid'], $input['revision'], $versions, $files, $startup, $limits);
     }
 

@@ -39,4 +39,20 @@ Schemas under protocol/v1 describe field structure and bounds. Both decoders add
 
 Run ./tools/dev task4-check for both languages. The harness requires BPS_PROTOCOL_FIXTURES in tests, runs Go 1.26 from a digest-pinned image with GOTOOLCHAIN=local, and caches compilation/modules in worktree-specific Docker volumes. New source remains authoritative in node/overlay; materialization copies it to the pinned Wings module and applies ordered patches. ./tools/dev gofmt copies formatting changes back to overlay source.
 
-The contract fixtures are seeds for the PHP and Go renderer tasks; they are not evidence that rendering is implemented. Exact 65,536-byte limits, UTF-8 validation, transport size, per-file multiset coverage, and aggregate expansion are enforced in code as well as the structural schemas.
+The PHP and Go renderers consume the same contract corpus. Exact 65,536-byte limits, UTF-8 validation, transport size, per-file multiset coverage, and aggregate expansion are enforced in code as well as the structural schemas.
+
+## Authenticated transport and activation
+
+The Panel exposes POST /api/remote/servers/{uuid}/secrets/runtime-bundle and POST /api/remote/servers/{uuid}/secrets/application-report. Both require HTTPS and the native node bearer identity, and bind the route's server to that node under a database lock. Browser sessions cannot substitute for node authentication. Requests reject duplicate and unknown fields. Bundle requests carry protocol, expected_revision, and attempt_id; a changed desired revision returns 409. Responses include Cache-Control: no-store (the framework also adds private). Request bodies, returned values, and raw error bodies must never be recorded by reverse-proxy or request-inspection middleware.
+
+Runtime delivery resolves only the immutable references in the current plan. Encoded metadata counts toward the bundle budget; each value's encoded size is checked before retaining it or reading the next value. Issued-attempt records contain only reference metadata. Applied reports must match a previously issued attempt, revision, version set, and complete file digest set. Repeating an identical report is idempotent; contradictory terminal reports return 409. Older applied observations cannot clear a newer desired revision.
+
+Before activation, start/restart, node reassignment, transfer, or websocket start permission, the Panel checks the target node's authenticated HTTPS GET /api/system?secrets=1 response for protocol 1, the pinned Wings base commit, and Panel rc.1. Positive proofs are cached for 60 seconds against node ID, address, and token identity. Unprotected servers keep native behavior. Root users cannot bypass compatibility. The capability is a declaration by a trusted patched node; host operators remain trusted and must deploy the qualified patch set.
+
+Wings uses a dedicated bounded transport for these two endpoints, verifies TLS certificates (including development), refuses redirects and insecure TLS settings, caps requests at 15 seconds, and emits only fixed protocol error codes. Private CA installations must configure a trusted CA in the node's system trust store. Generic remote error-body handling is deliberately bypassed.
+
+## Trusted operator budgets and patch development
+
+Publish the plugin configuration with php artisan vendor:publish --tag=better-pelican-secrets-config. BPS_BUNDLE_BYTES and BPS_RENDERED_BYTES may lower the 16 MiB transport and 64 MiB aggregate output ceilings; other ceilings can be lowered in config/better-pelican-secrets.php. Invalid or increased limits fail closed. Limits enter desired reference snapshots, so changes become pending for the next normal start. Bindings and previews use the same configured ceilings.
+
+Existing upstream edits live in ordered node/patches/*.patch; new files live in node/overlay. After deliberately editing an existing file in .work/wings, run ./tools/dev refresh-patches with the latest numbered patch basename before materialization or testing. Materialization verifies the complete patch chain against a temporary index and refuses to overwrite unrecorded tracked edits. Run ./tools/dev gofmt, refresh the latest patch if tracked files changed, and run ./tools/dev task8-check for the endpoint, TLS, protocol, and integration-interface gate.

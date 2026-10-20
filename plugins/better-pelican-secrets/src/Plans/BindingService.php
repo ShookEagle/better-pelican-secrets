@@ -11,6 +11,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use ShookEagle\BetterPelicanSecrets\Node\DesiredPlan;
 use ShookEagle\BetterPelicanSecrets\Node\FilePlan;
+use ShookEagle\BetterPelicanSecrets\Node\NodeCapabilityService;
 use ShookEagle\BetterPelicanSecrets\Plans\Models\ManagedFile;
 use ShookEagle\BetterPelicanSecrets\Plans\Models\StartupBinding;
 use ShookEagle\BetterPelicanSecrets\Secrets\AuditRecorder;
@@ -38,6 +39,7 @@ final class BindingService
             $compiled = $this->compiler->compile(new TemplateDocument($templateSource, $file->format, $file->defaultMode, $file->manifest));
             $this->authorizeManifest($actor, $server, $file->manifest);
             $this->authorizeManifest($actor, $server, $existing?->manifest ?? []);
+            app(NodeCapabilityService::class)->assertCompatible($server->node);
             $dummy = [];
             foreach ($file->manifest as $entry) {
                 $dummy[$entry['secret_id']] = 'DUMMY_VALUE';
@@ -72,6 +74,7 @@ final class BindingService
             if (($ordinary ? $ordinary->variable_value : $variable->default_value) !== '') {
                 throw new DomainException('startup_migration_required');
             }
+            app(NodeCapabilityService::class)->assertCompatible($server->node);
             StartupBinding::query()->updateOrCreate(['server_id' => $server->id, 'env' => $env], ['secret_id' => $secretId]);
             $plan = $this->plans->rebuild($server);
             $this->audit->record($actor, 'binding.startup.bind', ['server_id' => $server->id, 'secret_id' => $secretId, 'env' => $env, 'revision' => $plan->revision]);

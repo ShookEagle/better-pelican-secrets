@@ -6,7 +6,9 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\TestCase;
+use ShookEagle\BetterPelicanSecrets\Node\NodeCapabilityService;
 use ShookEagle\BetterPelicanSecrets\Providers\BetterPelicanSecretsProvider;
 
 abstract class PluginTestCase extends TestCase
@@ -39,6 +41,18 @@ abstract class PluginTestCase extends TestCase
         }
         $this->actor = User::factory()->create();
         $this->server = Server::factory()->create(['owner_id' => $this->actor->id]);
+        if (class_exists(NodeCapabilityService::class)) {
+            $node = $this->server->node;
+            $node->update(['scheme' => 'https']);
+            Http::fake(['*' => Http::response([
+                'protocol' => 1,
+                'wings_base_commit' => NodeCapabilityService::WINGS_BASE,
+                'panel_base_version' => NodeCapabilityService::PANEL_VERSION,
+            ], 200)]);
+            if (!$this->app->make(NodeCapabilityService::class)->compatible($node, true)) {
+                throw new RuntimeException('Authenticated capability fixture did not verify');
+            }
+        }
     }
 
     protected function tearDown(): void

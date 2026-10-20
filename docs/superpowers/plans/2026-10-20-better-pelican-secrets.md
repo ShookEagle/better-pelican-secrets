@@ -144,7 +144,7 @@ Produce Go structs `Plan`, `FilePlan`, `StartupPlan`, `Bundle`, `AppliedReport`,
 
 **Interfaces:** `TemplateDocument(string $source, string $format, string $defaultMode, array $manifest)`; `TemplateCompiler::compile(TemplateDocument $document): CompiledTemplate`; `render(CompiledTemplate $template, array $valuesBySecretId): string`; `PreviewService::preview(User $actor, int $serverId, TemplateDocument $document): string` always uses deterministic dummy values. Compiled tokens reference immutable secret IDs, mode, and source spans; they never contain live values.
 
-- [x] **Step 1:** Write `test_shared_rendering_vectors`, `test_preview_never_reads_secret_store`, `test_line_endings_and_encoding`, and `test_repeated_tokens_hit_expanded_budget`. Assert decoded JSON/YAML equals `"quote\" slash\\ dollar$ line\n雪"`, raw inserted token-looking text is not rescanned, CRLF outside tokens is preserved, an initial UTF-8 BOM is preserved only for text and rejected for structured outputs, and invalid UTF-8 is rejected. Dotenv vectors are read back with locked phpdotenv; reject unsupported multiline representations rather than inventing a dialect.
+- [x] **Step 1:** Write `test_shared_rendering_vectors`, `test_preview_never_reads_secret_store`, `test_line_endings_and_encoding`, and `test_repeated_tokens_hit_expanded_budget`. Assert decoded JSON/YAML equals `"quote\" slash\\ dollar$ line\né›ª"`, raw inserted token-looking text is not rescanned, CRLF outside tokens is preserved, an initial UTF-8 BOM is preserved only for text and rejected for structured outputs, and invalid UTF-8 is rejected. Dotenv vectors are read back with locked phpdotenv; reject unsupported multiline representations rather than inventing a dialect.
 
   ```php
   $this->assertSame($vector['expected_output'], $rendered);
@@ -196,17 +196,17 @@ Produce Go structs `Plan`, `FilePlan`, `StartupPlan`, `Bundle`, `AppliedReport`,
 
 **Interfaces:** `POST /api/remote/servers/{uuid}/secrets/runtime-bundle` accepts protocol, expected revision, attempt ID; `POST .../secrets/application-report` accepts AppliedReport. `ReferenceConfigurationService::handle(Server $server, array $override = []): array` preserves upstream configuration and adds a reference-only `secrets` plan. Go remote interface adds `GetSecretBundle(ctx context.Context, uuid string, revision string, attemptID string) (secrets.Bundle,error)` and `ReportSecretApplication(ctx context.Context, uuid string, report secrets.AppliedReport) error`. Capability response advertises protocol `1` and the patched base version.
 
-- [ ] **Step 1:** Add `test_wrong_node_and_browser_cannot_fetch_bundle`, `test_stale_revision_returns_conflict`, `test_bundle_is_no_store_and_values_are_minimal`, `test_stock_node_cannot_enable_bindings`, and `test_old_report_cannot_clear_new_pending_revision`. Go `TestSecretRemoteRejectsOversizeAndIdentityMismatch` checks bounded bodies, TLS validation, and error-body redaction.
+- [x] **Step 1:** Add `test_wrong_node_and_browser_cannot_fetch_bundle`, `test_stale_revision_returns_conflict`, `test_bundle_is_no_store_and_values_are_minimal`, `test_stock_node_cannot_enable_bindings`, and `test_old_report_cannot_clear_new_pending_revision`. Go `TestSecretRemoteRejectsOversizeAndIdentityMismatch` checks bounded bodies, TLS validation, and error-body redaction.
 
   ```php
   $staleResponse->assertStatus(409);
   $bundleResponse->assertHeader('Cache-Control', 'no-store');
   $browserResponse->assertForbidden();
   ```
-- [ ] **Step 2:** Run `./tools/dev php tests/php/Node` and `./tools/dev go ./remote -run TestSecretRemote`; expected missing endpoints/capabilities.
-- [ ] **Step 3:** Implement node-authenticated scope checks, 409 revision conflicts, minimal pinned-version bundles, no-store headers, and metadata-only idempotent reports. Node values stay out of request/response logging. Reject activation/transfer to nodes without verified capability; gate Panel power routes and websocket power permissions on compatibility. Unmodified stock Wings cannot implement a new veto: activation must be refused by Panel, while patched Wings enforces required plans on every node start. A trusted host operator replacing the binary with stock Wings is outside the guarantee, not a supported fallback. Decorate the resolved configuration service without plaintext environment injection.
-- [ ] **Step 4:** Repeat suites and inspect a serialized native server configuration for reference-only fields. Root power actions do not bypass node compatibility.
-- [ ] **Step 5:** Commit `feat: deliver scoped runtime bundles to compatible nodes`.
+- [x] **Step 2:** Run `./tools/dev php tests/php/Node` and `./tools/dev go ./remote -run TestSecretRemote`; expected missing endpoints/capabilities.
+- [x] **Step 3:** Implement node-authenticated scope checks, 409 revision conflicts, minimal pinned-version bundles, no-store headers, and metadata-only idempotent reports. Node values stay out of request/response logging. Reject activation/transfer to nodes without verified capability; gate Panel power routes and websocket power permissions on compatibility. Unmodified stock Wings cannot implement a new veto: activation must be refused by Panel, while patched Wings enforces required plans on every node start. A trusted host operator replacing the binary with stock Wings is outside the guarantee, not a supported fallback. Decorate the resolved configuration service without plaintext environment injection.
+- [x] **Step 4:** Repeat suites and inspect a serialized native server configuration for reference-only fields. Root power actions do not bypass node compatibility.
+- [x] **Step 5:** Commit `feat: deliver scoped runtime bundles to compatible nodes`.
 
 ### Task 9: Prepare private runtime files with safe path handling
 
