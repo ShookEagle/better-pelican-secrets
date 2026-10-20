@@ -156,6 +156,7 @@ func (s *Server) startWithSecretRuntime() error {
 	}
 	if prepared != nil {
 		s.reportSecretResult(prepared.Report())
+		s.startSecretWatcher(prepared)
 	}
 	return nil
 }

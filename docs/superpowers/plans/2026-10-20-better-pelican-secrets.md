@@ -250,17 +250,17 @@ Produce Go structs `Plan`, `FilePlan`, `StartupPlan`, `Bundle`, `AppliedReport`,
 
 **Interfaces:** `TemplateSourceService::read(User $actor, Server $server, string $fileId): string`; `save(User $actor, Server $server, string $fileId, string $source, string $expectedDigest): void` uses normal file rights and optimistic digests, not secret-store reads. `ApplicationStatusService::forServer(Server $server): ApplicationStatus`. Go `Watcher.Observe(ctx context.Context, plan Plan, applied AppliedReport) error` reports source digests/dirty state, with digest comparison authoritative at start.
 
-- [ ] **Step 1:** Add `test_editor_never_fetches_rendered_file`, `test_stale_save_returns_conflict`, `test_unapproved_reference_does_not_render`, and `test_source_change_remains_pending_after_old_report`. Live `test_editor_sftp_download_archive_and_backup_see_template` reads the same registered file through all normal paths and asserts the marker exists and fixture value does not.
+- [x] **Step 1:** Add `test_editor_never_fetches_rendered_file`, `test_stale_save_returns_conflict`, `test_unapproved_reference_does_not_render`, and `test_source_change_remains_pending_after_old_report`. Live `test_editor_sftp_download_archive_and_backup_see_template` reads the same registered file through all normal paths and asserts the marker exists and fixture value does not.
 
   ```php
   $this->assertStringContainsString('{{secret:API_KEY}}', $source);
   $this->assertStringNotContainsString('fixture-secret', $source);
   $this->assertTrue($status->pending);
   ```
-- [ ] **Step 2:** Run `./tools/dev php tests/php/Templates/TemplateSourceServiceTest.php`, `./tools/dev php tests/php/Plans/ApplicationStatusTest.php`, `./tools/dev go ./secrets -run TestWatcher`, and `./tools/dev acceptance -k template_access`.
-- [ ] **Step 3:** Implement source-only file operations through the existing daemon repository, digest-conflict responses, and metadata-only dirty reports. Poll managed source metadata/digests every five seconds using a cancellable watcher, avoiding a new filesystem-event dependency; digest comparison at start remains authoritative. Normal SFTP edits may invalidate a manifest; show invalid/pending status and block the next protected start rather than removing SFTP permissions. Ordinary surrounding edits with unchanged manifest remain allowed. Never overwrite the backing template with a runtime read or expose a render endpoint to general file clients.
-- [ ] **Step 4:** Repeat suites. Expected native source paths stay unchanged, runtime mount remains a start snapshot, and stale status messages cannot erase a newer dirty/pending state.
-- [ ] **Step 5:** Commit `feat: edit source templates and track pending application`.
+- [x] **Step 2:** Run `./tools/dev php tests/php/Templates/TemplateSourceServiceTest.php`, `./tools/dev php tests/php/Plans/ApplicationStatusTest.php`, `./tools/dev go ./secrets -run TestWatcher`, and `./tools/dev acceptance -k template_access`.
+- [x] **Step 3:** Implement source-only file operations through the existing daemon repository, digest-conflict responses, and metadata-only dirty reports. Poll managed source metadata/digests every five seconds using a cancellable watcher, avoiding a new filesystem-event dependency; digest comparison at start remains authoritative. Normal SFTP edits may invalidate a manifest; show invalid/pending status and block the next protected start rather than removing SFTP permissions. Ordinary surrounding edits with unchanged manifest remain allowed. Never overwrite the backing template with a runtime read or expose a render endpoint to general file clients.
+- [x] **Step 4:** Repeat suites. Expected native source paths stay unchanged, runtime mount remains a start snapshot, and stale status messages cannot erase a newer dirty/pending state.
+- [x] **Step 5:** Commit `feat: edit source templates and track pending application`.
 
 ### Task 12: Deliver server/admin secret and access interfaces
 

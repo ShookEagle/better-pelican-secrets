@@ -59,3 +59,23 @@ func (p PreparedStart) Redactor(destination io.Writer) (io.WriteCloser, error) {
 	}
 	return NewRedactor(destination, p.state.values), nil
 }
+
+// ReferencePlan returns only copied metadata for observers of this exact start.
+func (p PreparedStart) ReferencePlan() Plan {
+	if p.state == nil {
+		return Plan{}
+	}
+	p.state.mu.Lock()
+	defer p.state.mu.Unlock()
+	return clonePlan(p.state.plan)
+}
+func clonePlan(plan Plan) Plan {
+	copy := plan
+	copy.Versions = append([]VersionRef{}, plan.Versions...)
+	copy.Startup = append([]StartupPlan{}, plan.Startup...)
+	copy.Files = append([]FilePlan{}, plan.Files...)
+	for index := range copy.Files {
+		copy.Files[index].Manifest = append([]ManifestEntry{}, plan.Files[index].Manifest...)
+	}
+	return copy
+}

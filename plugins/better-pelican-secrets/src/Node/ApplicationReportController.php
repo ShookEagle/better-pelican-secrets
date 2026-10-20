@@ -8,15 +8,15 @@ use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use ShookEagle\BetterPelicanSecrets\Plans\ApplicationStatusService;
 use ShookEagle\BetterPelicanSecrets\Plans\Models\ApplicationRecord;
 use ShookEagle\BetterPelicanSecrets\Plans\Models\DesiredPlanRecord;
-use ShookEagle\BetterPelicanSecrets\Plans\PlanService;
 use stdClass;
 use Throwable;
 
 final class ApplicationReportController
 {
-    public function __construct(private PlanService $plans) {}
+    public function __construct(private ApplicationStatusService $status) {}
 
     public function __invoke(Request $request, Server $server): JsonResponse
     {
@@ -50,6 +50,11 @@ final class ApplicationReportController
                     throw new NodeRequestError('revision_conflict', 409);
                 }
                 $payload = $report->toWire();
+                // Stable source content is deduplicated independently of the
+                // observation counter, which is kept on the current head.
+                if ($report->kind === 'source-dirty') {
+                    unset($payload['observation_sequence']);
+                }
                 $digests = $report->sourceDigests;
                 ksort($digests);
                 $payload['source_digests'] = $digests ?: (object) [];
@@ -76,11 +81,14 @@ final class ApplicationReportController
                 } elseif ($terminal && ($terminal->kind !== $report->kind || $terminal->payload_digest !== $digest)) {
                     throw new NodeRequestError('revision_conflict', 409);
                 }
-                ApplicationRecord::query()->firstOrCreate(['server_id' => $server->id, 'attempt_id' => $report->attemptId,
+                $record = ApplicationRecord::query()->firstOrCreate(['server_id' => $server->id, 'attempt_id' => $report->attemptId,
                     'kind' => $report->kind, 'payload_digest' => $digest],
                     ['node_id' => $node->id, 'revision' => $report->revision, 'payload' => $payload, 'created_at' => now()]);
 
-                return new JsonResponse($this->status($server), 200, ['Cache-Control' => 'no-store']);
+                $this->status->recordObservation($record, $report->observationSequence);
+                $status = $this->status->forServer($server);
+
+                return new JsonResponse(['accepted' => true, 'desired_revision' => $status->desiredRevision, 'applied_revision' => $status->appliedRevision, 'pending' => $status->pending, 'dirty' => $status->dirty], 200, ['Cache-Control' => 'no-store']);
             }, 3);
         } catch (NodeRequestError $error) {
             return new JsonResponse(['error' => $error->errorCode], $error->status, ['Cache-Control' => 'no-store']);
@@ -89,23 +97,5 @@ final class ApplicationReportController
         } catch (Throwable) {
             return new JsonResponse(['error' => 'internal_error'], 503, ['Cache-Control' => 'no-store']);
         }
-    }
-
-    private function status(Server $server): array
-    {
-        $desired = $this->plans->current($server);
-        $applied = ApplicationRecord::query()->where('server_id', $server->id)->where('node_id', $server->node_id)
-            ->where('kind', 'applied')->orderByDesc('id')->first();
-        $dirty = false;
-        if ($applied) {
-            $observation = ApplicationRecord::query()->where('server_id', $server->id)->where('attempt_id', $applied->attempt_id)
-                ->where('kind', 'source-dirty')->where('id', '>', $applied->id)->orderByDesc('id')->first();
-            if ($observation) {
-                $dirty = $observation->payload['source_digests'] !== $applied->payload['source_digests'];
-            }
-        }
-
-        return ['accepted' => true, 'desired_revision' => $desired->revision, 'applied_revision' => $applied?->revision,
-            'pending' => $desired->revision !== $applied?->revision || $dirty, 'dirty' => $dirty];
     }
 }

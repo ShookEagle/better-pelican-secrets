@@ -4,6 +4,7 @@ use App\Models\Server;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Application;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -52,6 +53,9 @@ abstract class PluginTestCase extends TestCase
             if (!$this->app->make(NodeCapabilityService::class)->compatible($node, true)) {
                 throw new RuntimeException('Authenticated capability fixture did not verify');
             }
+            // Laravel 13 appends fake callbacks; replace the fixture factory
+            // after seeding the proof so a later test does not reuse its closed stream.
+            Http::swap(new Factory($this->app['events']));
         }
     }
 

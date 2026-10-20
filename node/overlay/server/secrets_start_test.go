@@ -165,7 +165,7 @@ func secretPowerFixture(t *testing.T) (*Server, *secretPowerRemote, *secretPower
 	server.cfg.Secrets = &plan
 	env := &secretPowerEnvironment{configuration: environment.NewConfiguration(environment.Settings{}, nil), root: dir, state: environment.ProcessOfflineState}
 	server.Environment = env
-	t.Cleanup(func() { env.SetSecretRuntime(nil) })
+	t.Cleanup(func() { server.stopSecretWatcher(); env.SetSecretRuntime(nil) })
 	return server, client, env
 }
 
@@ -270,5 +270,36 @@ func TestSecretConfigurationCannotDropRequiredPlan(t *testing.T) {
 	err := s.SyncWithConfiguration(remote.ServerConfigurationResponse{Settings: json.RawMessage("{\"uuid\":\"11111111-1111-4111-8111-111111111111\"}"), ProcessConfiguration: &remote.ProcessConfiguration{}})
 	if err == nil {
 		t.Fatal("protected server accepted missing reference plan")
+	}
+}
+
+func TestSecretWatcherOwnsExactSnapshotAndStops(t *testing.T) {
+	s, _, env := secretPowerFixture(t)
+	if err := s.HandlePowerAction(PowerActionStart); err != nil {
+		t.Fatal(err)
+	}
+	s.secretWatchMutex.Lock()
+	done := s.secretWatchDone
+	s.secretWatchMutex.Unlock()
+	if done == nil {
+		t.Fatal("successful managed-file start did not own a watcher")
+	}
+	expected := env.prepared.ReferencePlan().Files[0].Manifest[0].Name
+	s.Config().Secrets.Files[0].Manifest[0].Name = "OTHER"
+	if env.prepared.ReferencePlan().Files[0].Manifest[0].Name != expected {
+		t.Fatal("watcher snapshot aliases mutable cached config")
+	}
+	exported := env.prepared.ReferencePlan()
+	exported.Files[0].Manifest[0].Name = "EXPORTED_MUTATION"
+	if env.prepared.ReferencePlan().Files[0].Manifest[0].Name != expected {
+		t.Fatal("watcher snapshot export aliases private state")
+	}
+	if err := s.HandlePowerAction(PowerActionStop); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-done:
+	default:
+		t.Fatal("power stop left watcher running")
 	}
 }

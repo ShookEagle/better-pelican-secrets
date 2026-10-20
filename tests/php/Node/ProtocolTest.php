@@ -88,4 +88,20 @@ final class ProtocolTest extends TestCase
             }
         }
     }
+
+    public function test_shared_source_observation_sequence_vectors(): void
+    {
+        $fixture = $this->fixtures();
+        $report = Protocol::decodeReport($fixture['source_dirty_report']);
+        $this->assertSame('9007199254740993', $report->observationSequence);
+        $this->assertSame($fixture['source_dirty_report'], $report->toWire());
+        foreach ($fixture['invalid_reports'] as $vector) {
+            try {
+                Protocol::decodeReport($vector['input']);
+                $this->fail('Accepted invalid report ' . $vector['name']);
+            } catch (DomainException $error) {
+                $this->assertSame($vector['error_code'], $error->getMessage());
+            }
+        }
+    }
 }

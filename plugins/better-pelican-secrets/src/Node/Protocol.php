@@ -151,7 +151,16 @@ final class Protocol
 
     public static function decodeReport(#[\SensitiveParameter] array $input): AppliedReport
     {
-        self::keys($input, ['protocol', 'server_uuid', 'kind', 'attempt_id', 'revision', 'source_digests', 'versions', 'error_code']);
+        $fields = ['protocol', 'server_uuid', 'kind', 'attempt_id', 'revision', 'source_digests', 'versions', 'error_code'];
+        if (($input['kind'] ?? null) === 'source-dirty') {
+            $fields[] = 'observation_sequence';
+        }
+        self::keys($input, $fields);
+        $sequence = $input['observation_sequence'] ?? null;
+        if ($input['kind'] === 'source-dirty' && (!is_string($sequence) || !preg_match('/\A[1-9][0-9]{0,19}\z/', $sequence)
+            || (strlen($sequence) === 20 && strcmp($sequence, '18446744073709551615') > 0))) {
+            self::fail();
+        }
         self::identity($input);
         self::uuid($input['attempt_id']);
         if (!in_array($input['kind'], ['applied', 'failed', 'source-dirty'], true) || !is_array($input['source_digests'])
@@ -170,7 +179,7 @@ final class Protocol
         }
 
         return new AppliedReport(1, $input['server_uuid'], $input['kind'], $input['attempt_id'], $input['revision'],
-            $input['source_digests'], self::versions($input['versions']), $input['error_code']);
+            $input['source_digests'], self::versions($input['versions']), $input['error_code'], $sequence);
     }
 
     private static function identity(array $input): void

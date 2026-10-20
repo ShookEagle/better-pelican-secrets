@@ -45,6 +45,7 @@ type Preparer struct {
 }
 type PreparedStart struct{ state *preparedState }
 type preparedState struct {
+	plan        Plan
 	values      []string
 	mapping     DataMapping
 	mu          sync.Mutex
@@ -221,7 +222,7 @@ func (p *Preparer) Prepare(ctx context.Context, plan Plan, bundle Bundle, root *
 		if err != nil {
 			return nil, err
 		}
-		prepared := &PreparedStart{state: &preparedState{mapping: mapping, area: area, environment: map[string]string{}, report: AppliedReport{
+		prepared := &PreparedStart{state: &preparedState{plan: clonePlan(plan), mapping: mapping, area: area, environment: map[string]string{}, report: AppliedReport{
 			Protocol: 1, ServerUUID: plan.ServerUUID, Kind: "applied", AttemptID: bundle.AttemptID,
 			Revision: plan.Revision, SourceDigests: digests, Versions: append([]VersionRef{}, plan.Versions...),
 		}}}

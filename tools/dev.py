@@ -147,6 +147,10 @@ def main():
         php_run(["php", "-d", "memory_limit=512M", "vendor/bin/phpunit", "-c", "/workspace/tests/phpunit.xml", *test_arguments])
     elif command == "pint":
         php_run(["php", "vendor/bin/pint", "/workspace/plugins", "/workspace/tests/php", *arguments])
+    elif command == "task11-check":
+        run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Templates/TemplateSourceServiceTest.php", "tests/php/Plans/ApplicationStatusTest.php", "tests/php/Node"])
+        run([sys.executable, str(ROOT / "tools/dev.py"), "go", "./secrets", "./server", "./sftp", "./router", "./environment/docker"])
+        run([sys.executable, str(ROOT / "tools/dev.py"), "acceptance", "-k", "template_access"])
     elif command == "task10-check":
         run([sys.executable, str(ROOT / "tools/dev.py"), "go", "./server", "./environment/docker", "./secrets"])
         run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Node/ProtocolTest.php"])

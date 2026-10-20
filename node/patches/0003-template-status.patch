@@ -1,0 +1,68 @@
+diff --git a/server/power.go b/server/power.go
+index d954b36..9485a1f 100644
+--- a/server/power.go
++++ b/server/power.go
+@@ -127,6 +127,9 @@ func (s *Server) HandlePowerAction(action PowerAction, waitSeconds ...int) error
+ 			return ErrIsRunning
+ 		}
+ 
++		if err := s.stopSecretWatcher(); err != nil {
++			return err
++		}
+ 		// Run the pre-boot logic for the server before processing the environment start.
+ 		if err := s.onBeforeStart(); err != nil {
+ 			return s.secretPreflightFailure(err)
+@@ -150,6 +153,9 @@ func (s *Server) HandlePowerAction(action PowerAction, waitSeconds ...int) error
+ 			return err
+ 		}
+ 
++		if err := s.stopSecretWatcher(); err != nil {
++			return err
++		}
+ 		if action == PowerActionStop {
+ 			return nil
+ 		}
+@@ -161,7 +167,10 @@ func (s *Server) HandlePowerAction(action PowerAction, waitSeconds ...int) error
+ 
+ 		return s.startWithSecretRuntime()
+ 	case PowerActionTerminate:
+-		return s.Environment.Terminate(s.Context(), "SIGKILL")
++		if err := s.Environment.Terminate(s.Context(), "SIGKILL"); err != nil {
++			return err
++		}
++		return s.stopSecretWatcher()
+ 	}
+ 
+ 	return errors.New("attempting to handle unknown power action")
+diff --git a/server/server.go b/server/server.go
+index 7442933..c65e852 100644
+--- a/server/server.go
++++ b/server/server.go
+@@ -31,7 +31,10 @@ import (
+ // Server is the high level definition for a server instance being controlled
+ // by Wings.
+ type Server struct {
+-	secretPreparer *secrets.Preparer
++	secretWatchMutex  sync.Mutex
++	secretWatchCancel context.CancelFunc
++	secretWatchDone   <-chan struct{}
++	secretPreparer    *secrets.Preparer
+ 	// Internal mutex used to block actions that need to occur sequentially, such as
+ 	// writing the configuration to the disk.
+ 	sync.RWMutex
+@@ -116,6 +119,7 @@ func New(client remote.Client) (*Server, error) {
+ // using the context on the server struct. This will cancel any running install
+ // processes for the server as well.
+ func (s *Server) CleanupForDestroy() {
++	s.stopSecretWatcher()
+ 	s.CtxCancel()
+ 	s.Events().Destroy()
+ 	s.DestroyAllSinks()
+@@ -445,6 +449,7 @@ func (s *Server) OnStateChange() {
+ 	// separate thread as to not block any actions currently taking place in the flow
+ 	// that called this function.
+ 	if (prevState == environment.ProcessStartingState || prevState == environment.ProcessRunningState) && s.Environment.State() == environment.ProcessOfflineState {
++		s.stopSecretWatcher()
+ 		s.Log().Info("detected server as entering a crashed state; running crash handler")
+ 
+ 		go func(server *Server) {

@@ -148,3 +148,34 @@ func TestProtocolValidUnicodeIsPreserved(t *testing.T) {
 		}
 	}
 }
+
+func TestProtocolSourceObservationSequence(t *testing.T) {
+	root := os.Getenv("BPS_PROTOCOL_FIXTURES")
+	data, err := os.ReadFile(filepath.Join(root, "protocol.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var corpus struct {
+		Source  json.RawMessage `json:"source_dirty_report"`
+		Invalid []struct {
+			Name      string
+			Input     json.RawMessage
+			ErrorCode string `json:"error_code"`
+		} `json:"invalid_reports"`
+	}
+	if err := json.Unmarshal(data, &corpus); err != nil {
+		t.Fatal(err)
+	}
+	report, err := DecodeReport(corpus.Source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.ObservationSequence != "9007199254740993" {
+		t.Fatal("source sequence lost precision")
+	}
+	for _, vector := range corpus.Invalid {
+		if _, err := DecodeReport(vector.Input); err == nil || err.Error() != vector.ErrorCode {
+			t.Fatalf("accepted invalid report %s", vector.Name)
+		}
+	}
+}

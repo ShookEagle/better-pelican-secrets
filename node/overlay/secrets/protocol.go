@@ -90,14 +90,15 @@ func (b Bundle) GoString() string                  { return b.String() }
 func (b Bundle) Format(state fmt.State, verb rune) { io.WriteString(state, b.String()) }
 
 type AppliedReport struct {
-	Protocol      int               `json:"protocol"`
-	ServerUUID    string            `json:"server_uuid"`
-	Kind          string            `json:"kind"`
-	AttemptID     string            `json:"attempt_id"`
-	Revision      string            `json:"revision"`
-	SourceDigests map[string]string `json:"source_digests"`
-	Versions      []VersionRef      `json:"versions"`
-	ErrorCode     *string           `json:"error_code"`
+	ObservationSequence string            `json:"observation_sequence,omitempty"`
+	Protocol            int               `json:"protocol"`
+	ServerUUID          string            `json:"server_uuid"`
+	Kind                string            `json:"kind"`
+	AttemptID           string            `json:"attempt_id"`
+	Revision            string            `json:"revision"`
+	SourceDigests       map[string]string `json:"source_digests"`
+	Versions            []VersionRef      `json:"versions"`
+	ErrorCode           *string           `json:"error_code"`
 }
 
 var planFields = []string{"protocol", "server_uuid", "revision", "versions", "files", "startup", "limits"}
@@ -152,6 +153,17 @@ func DecodeBundle(data []byte) (Bundle, error) {
 func DecodeReport(data []byte) (AppliedReport, error) {
 	var report AppliedReport
 	fields := []string{"protocol", "server_uuid", "kind", "attempt_id", "revision", "source_digests", "versions", "error_code"}
+	if int64(len(data)) > MaxBundleBytes {
+		return AppliedReport{}, errors.New("limit_exceeded")
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return AppliedReport{}, invalid()
+	}
+	_, sequenced := raw["observation_sequence"]
+	if sequenced {
+		fields = append(fields, "observation_sequence")
+	}
 	if err := decodeStrict(data, &report, fields, true); err != nil {
 		return AppliedReport{}, err
 	}
@@ -174,6 +186,13 @@ func DecodeReport(data []byte) (AppliedReport, error) {
 			return AppliedReport{}, invalid()
 		}
 	} else if (report.Kind != "applied" && report.Kind != "source-dirty") || report.ErrorCode != nil {
+		return AppliedReport{}, invalid()
+	}
+	if report.Kind == "source-dirty" {
+		if !sequenced || report.ObservationSequence == "0" || validateIdentity(1, report.ServerUUID, report.ObservationSequence) != nil {
+			return AppliedReport{}, invalid()
+		}
+	} else if sequenced {
 		return AppliedReport{}, invalid()
 	}
 	return report, nil
