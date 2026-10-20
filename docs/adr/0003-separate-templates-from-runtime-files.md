@@ -1,0 +1,3 @@
+# Separate editable templates from runtime files
+
+Keep placeholder configuration files in ordinary server storage and render confidential runtime copies outside that storage, mounting them into the game container at start. Use the Panel plugin for encrypted storage and explicit grants, with a version-pinned Wings extension for runtime delivery rather than writing plaintext into the files exposed through normal file operations and backups. This adds node integration and container lifecycle work, but a masked Panel editor alone would leave normal filesystem copies containing actual values; it does not change the accepted ability of game code to read its own runtime secrets.
