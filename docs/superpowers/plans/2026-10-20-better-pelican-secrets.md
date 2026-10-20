@@ -91,16 +91,16 @@ All tasks follow red/green verification. A failure must be the intended missing 
 
 **Interfaces:** `SecretStore::create(Server $server, string $name, string $description, SecretValue $value, User $actor): SecretMetadata`; `replace(string $secretId, SecretValue $value, User $actor): SecretVersionRef`; `metadata(string $secretId): SecretMetadata`; `reveal(SecretVersionRef $version): SecretValue`; `delete(string $secretId, User $actor): void`. The store is internal-only; Task 7 adds the binding-aware deletion entry point before public routes exist. `SecretVersionRef` contains `secretId: string`, `version: int`. `SecretValue` wraps a private UTF-8 value and exposes `bytes(): string`; debug/JSON/string representations are redacted. `AuditRecorder::record(User|int $actor, string $operation, array $metadata): void` accepts whitelisted metadata only.
 
-- [ ] **Step 1:** Write `test_ciphertext_is_not_value`, `test_versions_are_immutable`, `test_empty_is_distinct_from_unchanged`, and `test_audit_and_serialization_exclude_values`. Assertions include `assertStringNotContainsString('fixture-secret', $databaseRowJson)` and `assertSame(2, $newVersion->version)`. Cover the exact name regex, duplicate server/name, 65,536-byte boundary, invalid UTF-8/NUL, encryption failure, and non-secret description handling.
+- [x] **Step 1:** Write `test_ciphertext_is_not_value`, `test_versions_are_immutable`, `test_empty_is_distinct_from_unchanged`, and `test_audit_and_serialization_exclude_values`. Assertions include `assertStringNotContainsString('fixture-secret', $databaseRowJson)` and `assertSame(2, $newVersion->version)`. Cover the exact name regex, duplicate server/name, 65,536-byte boundary, invalid UTF-8/NUL, encryption failure, and non-secret description handling.
 
   ```php
   $this->assertStringNotContainsString('fixture-secret', $databaseRowJson);
   $this->assertSame(2, $newVersion->version);
   ```
-- [ ] **Step 2:** Run `./tools/dev php tests/php/Secrets/SecretStoreTest.php`; expected missing storage behavior.
-- [ ] **Step 3:** Implement models/migration and authenticated Laravel encryption with hidden ciphertext fields, transactional version replacement, unique names per server, immutable names, and redacted errors. This task exposes no public route; callers are trusted services until Task 3 supplies authorization. Generated values use 32 random bytes encoded base64url without padding. Never hash a value into audit metadata.
-- [ ] **Step 4:** Repeat the command; expect all boundary and leakage assertions to pass, including an empty stored value created explicitly.
-- [ ] **Step 5:** Commit `feat: store encrypted immutable secret versions`.
+- [x] **Step 2:** Run `./tools/dev php tests/php/Secrets/SecretStoreTest.php`; expected missing storage behavior.
+- [x] **Step 3:** Implement models/migration and authenticated Laravel encryption with hidden ciphertext fields, transactional version replacement, unique names per server, immutable names, and redacted errors. This task exposes no public route; callers are trusted services until Task 3 supplies authorization. Generated values use 32 random bytes encoded base64url without padding. Never hash a value into audit metadata.
+- [x] **Step 4:** Repeat the command; expect all boundary and leakage assertions to pass, including an empty stored value created explicitly.
+- [x] **Step 5:** Commit `feat: store encrypted immutable secret versions`.
 
 ### Task 3: Enforce explicit grants and prevent delegation escalation
 
