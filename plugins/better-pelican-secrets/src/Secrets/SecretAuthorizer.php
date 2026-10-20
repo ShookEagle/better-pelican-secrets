@@ -31,6 +31,23 @@ final class SecretAuthorizer
         $this->deny();
     }
 
+    /** Admin actions may use an explicit global operation without server membership. */
+    public function authorizeAdmin(User $actor, SecretOperation $operation, SecretScope $scope): void
+    {
+        $this->assertScope($scope);
+        if ($operation === SecretOperation::Create && $scope->secretId !== null) {
+            $this->deny();
+        }
+        $fresh = User::query()->find($actor->id);
+        if (!$fresh) {
+            $this->deny();
+        }
+        if ($this->isRoot($fresh) || in_array($operation, $this->native->globalOperations($fresh), true)) {
+            return;
+        }
+        $this->authorize($fresh, $operation, $scope);
+    }
+
     public function assertScope(SecretScope $scope): void
     {
         if ($scope->serverId < 1 || !Server::query()->whereKey($scope->serverId)->exists()

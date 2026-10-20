@@ -66,6 +66,20 @@ final class SecretStore
         }
     }
 
+    public function updateDescription(string $secretId, string $description, User $actor): void
+    {
+        $this->validateDescription($description);
+        try {
+            DB::transaction(function () use ($secretId, $description, $actor) {
+                $secret = Secret::query()->lockForUpdate()->findOrFail($secretId);
+                $secret->update(['description' => $description]);
+                $this->audit->record($actor, 'secret.description', $this->auditMetadata($secret));
+            }, 3);
+        } catch (Throwable) {
+            throw new DomainException('Secret description update failed.');
+        }
+    }
+
     public function metadata(string $secretId): SecretMetadata
     {
         try {

@@ -268,17 +268,17 @@ Produce Go structs `Plan`, `FilePlan`, `StartupPlan`, `Bundle`, `AppliedReport`,
 
 **Interfaces:** UI actions and `/api/client/servers/{server}/secrets` CRUD/reveal/grant endpoints call Tasks 2/3/7 services, never model values directly. `SecretController::reveal(Illuminate\Http\Request $request, Server $server, string $secretId): Illuminate\Http\JsonResponse` obtains the actor from `$request->user()` and returns only the explicitly requested authorized value with no-store. Shared actions expose name/description/version/binding count metadata and distinct Replace, Set empty value, Delete, Reveal, Generate, and Manage access actions.
 
-- [ ] **Step 1:** Write `test_owner_page_does_not_bypass_grants`, `test_direct_livewire_action_rechecks_permission`, `test_blank_update_preserves_value`, `test_reveal_is_separate_audited_action`, and `test_admin_list_respects_scope`. Assert ordinary page HTML/Livewire payloads and API list JSON never contain the fixture value, update never prefills it, and granting unheld reveal is denied through native and plugin forms.
+- [x] **Step 1:** Write `test_owner_page_does_not_bypass_grants`, `test_direct_livewire_action_rechecks_permission`, `test_blank_update_preserves_value`, `test_reveal_is_separate_audited_action`, and `test_admin_list_respects_scope`. Assert ordinary page HTML/Livewire payloads and API list JSON never contain the fixture value, update never prefills it, and granting unheld reveal is denied through native and plugin forms.
 
   ```php
   $listResponse->assertDontSee('fixture-secret');
   $deniedRevealResponse->assertForbidden();
   $authorizedRevealResponse->assertJsonPath('value', 'fixture-secret');
   ```
-- [ ] **Step 2:** Run `./tools/dev php tests/php/Filament/SecretsPageTest.php` and `./tools/dev php tests/php/Http/SecretControllerTest.php`; expected missing interfaces.
-- [ ] **Step 3:** Implement three sections on the server page, admin server filters, explicit grant management with visible inherited access, request-by-request authorization, action-specific metadata responses, and sanitized validation messages. Deletion must call `BindingService::deleteSecret`, not the internal store directly. Bind native admin/subuser custom permission editing to the Task 3 authorizer; UI hiding alone is insufficient. Do not persist revealed values in component state across ordinary subsequent requests or include them in general notifications.
-- [ ] **Step 4:** Repeat tests and manually view server/admin flows using fixture users in the disposable Panel. Expected correct action availability and explicit reveal only; verify both layouts visually before screenshots/documentation.
-- [ ] **Step 5:** Commit `feat: add server and admin secret management pages`.
+- [x] **Step 2:** Run `./tools/dev php tests/php/Filament/SecretsPageTest.php` and `./tools/dev php tests/php/Http/SecretControllerTest.php`; expected missing interfaces.
+- [x] **Step 3:** Implement three sections on the server page, admin server filters, explicit grant management with visible inherited access, request-by-request authorization, action-specific metadata responses, and sanitized validation messages. Deletion must call `BindingService::deleteSecret`, not the internal store directly. Bind native admin/subuser custom permission editing to the Task 3 authorizer; UI hiding alone is insufficient. Do not persist revealed values in component state across ordinary subsequent requests or include them in general notifications.
+- [x] **Step 4:** Repeat tests and manually view server/admin flows using fixture users in the disposable Panel. Expected correct action availability and explicit reveal only; verify both layouts visually before screenshots/documentation.
+- [x] **Step 5:** Commit `feat: add server and admin secret management pages`.
 
 ### Task 13: Deliver generic file/startup setup and explicit migration
 

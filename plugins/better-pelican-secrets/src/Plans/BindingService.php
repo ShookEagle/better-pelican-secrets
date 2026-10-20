@@ -111,12 +111,12 @@ final class BindingService
         }, 3);
     }
 
-    public function deleteSecret(User $actor, Server $server, string $secretId): void
+    public function deleteSecret(User $actor, Server $server, string $secretId, bool $admin = false): void
     {
-        DB::transaction(function () use ($actor, $server, $secretId) {
-            $this->authorizer->assertMember($actor, $server->id);
+        DB::transaction(function () use ($actor, $server, $secretId, $admin) {
             $server = Server::query()->lockForUpdate()->findOrFail($server->id);
-            $this->authorizer->authorize($actor, SecretOperation::Delete, new SecretScope($server->id, $secretId));
+            $authorize = $admin ? 'authorizeAdmin' : 'authorize';
+            $this->authorizer->$authorize($actor, SecretOperation::Delete, new SecretScope($server->id, $secretId));
             if (StartupBinding::query()->where('server_id', $server->id)->where('secret_id', $secretId)->exists()) {
                 throw new DomainException('secret_in_use');
             }

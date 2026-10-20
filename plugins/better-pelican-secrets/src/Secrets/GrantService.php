@@ -12,17 +12,17 @@ final class GrantService
 {
     public function __construct(private SecretAuthorizer $authorizer, private AuditRecorder $audit) {}
 
-    public function grant(User $actor, User $recipient, SecretScope $scope, array $operations): void
+    public function grant(User $actor, User $recipient, SecretScope $scope, array $operations, bool $admin = false): void
     {
-        $this->mutate($actor, $recipient, $scope, $operations, false);
+        $this->mutate($actor, $recipient, $scope, $operations, false, $admin);
     }
 
-    public function revoke(User $actor, User $recipient, SecretScope $scope, array $operations): void
+    public function revoke(User $actor, User $recipient, SecretScope $scope, array $operations, bool $admin = false): void
     {
-        $this->mutate($actor, $recipient, $scope, $operations, true);
+        $this->mutate($actor, $recipient, $scope, $operations, true, $admin);
     }
 
-    private function mutate(User $actor, User $recipient, SecretScope $scope, array $operations, bool $revoke): void
+    private function mutate(User $actor, User $recipient, SecretScope $scope, array $operations, bool $revoke, bool $admin): void
     {
         foreach ($operations as $operation) {
             if (!$operation instanceof SecretOperation) {
@@ -30,11 +30,12 @@ final class GrantService
             }
         }
         $operations = array_values(array_unique($operations, SORT_REGULAR));
-        DB::transaction(function () use ($actor, $recipient, $scope, $operations, $revoke) {
-            $this->authorizer->authorize($actor, SecretOperation::ManageAccess, $scope);
+        DB::transaction(function () use ($actor, $recipient, $scope, $operations, $revoke, $admin) {
+            $authorize = $admin ? 'authorizeAdmin' : 'authorize';
+            $this->authorizer->$authorize($actor, SecretOperation::ManageAccess, $scope);
             $this->authorizer->assertMember($recipient, $scope->serverId);
             foreach ($operations as $operation) {
-                $this->authorizer->authorize($actor, $operation, $scope);
+                $this->authorizer->$authorize($actor, $operation, $scope);
                 $key = ['user_id' => $recipient->id, 'server_id' => $scope->serverId,
                     'secret_id' => $scope->secretId ?? '', 'operation' => $operation->value];
                 if ($revoke) {

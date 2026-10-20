@@ -72,7 +72,7 @@ def require_docker():
         raise RuntimeError("The approved harness requires a Linux Docker engine.")
 
 
-def php_run(arguments, app_env="testing"):
+def php_run(arguments, app_env="testing", env_overrides=None, extra_docker_args=None):
     sync_plugin()
     variables = {
         "APP_ENV": app_env,
@@ -84,6 +84,7 @@ def php_run(arguments, app_env="testing"):
         "CACHE_STORE": "array", "QUEUE_CONNECTION": "sync", "SESSION_DRIVER": "array",
         "BPS_PROTOCOL_FIXTURES": "/workspace/protocol/fixtures",
     }
+    variables.update(env_overrides or {})
     cache_id = hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
     cache_volumes = {"vendor": "bps-dev-" + cache_id + "-vendor", "node_modules": "bps-dev-" + cache_id + "-node"}
     for volume in cache_volumes.values():
@@ -98,7 +99,7 @@ def php_run(arguments, app_env="testing"):
     args += ["--mount", "type=bind,source=" + str(cache_path) + ",target=/root/.cache/composer"]
     for key, value in variables.items():
         args += ["--env", key + "=" + value]
-    return run([*args, IMAGE, *arguments])
+    return run([*args, *(extra_docker_args or []), IMAGE, *arguments])
 
 
 def go_run(arguments):
@@ -147,6 +148,39 @@ def main():
         php_run(["php", "-d", "memory_limit=512M", "vendor/bin/phpunit", "-c", "/workspace/tests/phpunit.xml", *test_arguments])
     elif command == "pint":
         php_run(["php", "vendor/bin/pint", "/workspace/plugins", "/workspace/tests/php", *arguments])
+    elif command == "ui-start":
+        import uuid
+        database = ROOT / ".work/panel/database/bps-ui.sqlite"
+        database.touch(exist_ok=True)
+        import socket
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            port = listener.getsockname()[1]
+        environment = {"DB_DATABASE": "/workspace/.work/panel/database/bps-ui.sqlite",
+                       "SESSION_DRIVER": "file", "APP_DEBUG": "false", "APP_INSTALLED": "true",
+                       "APP_URL": "http://127.0.0.1:" + str(port)}
+        php_run(["php", "-d", "memory_limit=512M", "/workspace/tools/fixtures/panel-ui.php"],
+                app_env="local", env_overrides=environment)
+        name = "bps-ui-" + uuid.uuid4().hex[:12]
+        php_run(["php", "-d", "memory_limit=512M", "-S", "0.0.0.0:8080", "-t", "public", "/workspace/tools/fixtures/ui-router.php"],
+                app_env="local", env_overrides=environment,
+                extra_docker_args=["--detach", "--name", name, "--publish", "127.0.0.1:" + str(port) + ":8080"])
+        port = subprocess.check_output([DOCKER, "port", name, "8080/tcp"], text=True).strip().split(":")[-1]
+        state = {"container": name, "url": "http://127.0.0.1:" + port}
+        (ROOT / ".work/ui-fixture.json").write_text(json.dumps(state), encoding="utf-8")
+        print(json.dumps(state))
+    elif command == "ui-stop":
+        state = json.loads((ROOT / ".work/ui-fixture.json").read_text(encoding="utf-8"))
+        name = state["container"]
+        if not re.fullmatch(r"bps-ui-[0-9a-f]{12}", name):
+            raise RuntimeError("Invalid disposable UI container identity")
+        label = subprocess.check_output([DOCKER, "inspect", "--format",
+            '{{index .Config.Labels "better-pelican-secrets.dev"}}', name], text=True).strip()
+        if label != "true":
+            raise RuntimeError("Refusing to stop an unlabelled container")
+        run([DOCKER, "stop", name])
+    elif command == "task12-check":
+        run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Filament", "tests/php/Http", "tests/php/Secrets"])
     elif command == "task11-check":
         run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Templates/TemplateSourceServiceTest.php", "tests/php/Plans/ApplicationStatusTest.php", "tests/php/Node"])
         run([sys.executable, str(ROOT / "tools/dev.py"), "go", "./secrets", "./server", "./sftp", "./router", "./environment/docker"])

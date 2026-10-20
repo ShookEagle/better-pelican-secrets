@@ -19,6 +19,8 @@ use App\Services\Subusers\SubuserCreationService;
 use App\Services\Subusers\SubuserUpdateService;
 use Filament\Schemas\Schema;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
+use ShookEagle\BetterPelicanSecrets\Http\SecretResponse;
 use ShookEagle\BetterPelicanSecrets\Node\CompatibleDaemonServerRepository;
 use ShookEagle\BetterPelicanSecrets\Node\NodeCapabilityService;
 use ShookEagle\BetterPelicanSecrets\Node\ReferenceConfigurationService;
@@ -58,6 +60,10 @@ final class BetterPelicanSecretsProvider extends ServiceProvider
         Server::updating(fn (Server $server) => app(NodeCapabilityService::class)->guardServerMove($server));
         ServerTransfer::creating(fn (ServerTransfer $transfer) => app(NodeCapabilityService::class)->guardTransfer($transfer));
         $this->loadRoutesFrom(dirname(__DIR__, 2) . '/routes/node.php');
+        $this->loadRoutesFrom(dirname(__DIR__, 2) . '/routes/client.php');
+        $this->loadViewsFrom(dirname(__DIR__, 2) . '/resources/views', 'better-pelican-secrets');
+        $this->loadTranslationsFrom(dirname(__DIR__, 2) . '/lang', 'better-pelican-secrets');
+        Livewire::addPersistentMiddleware([SecretResponse::class]);
 
         ServerVariable::saving(fn (ServerVariable $variable) => app(ManagedVariableGuard::class)->assertModelWritable($variable));
         ServerVariable::deleting(fn (ServerVariable $variable) => app(ManagedVariableGuard::class)->assertModelWritable($variable, true));
