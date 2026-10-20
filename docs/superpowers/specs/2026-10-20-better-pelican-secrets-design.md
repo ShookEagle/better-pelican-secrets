@@ -2,7 +2,9 @@
 
 Date: 2026-10-20
 
-Status: proposed for review. The product direction below is agreed; this written specification needs review before implementation planning.
+Status: approved by the user on 2026-10-20 for implementation planning. The implementation plan requires its own review before execution.
+
+Implementation plan: [task breakdown and verification](../plans/2026-10-20-better-pelican-secrets.md).
 
 ## 1. Purpose and success criteria
 
