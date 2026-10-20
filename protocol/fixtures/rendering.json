@@ -533,6 +533,123 @@
         "22222222-2222-4222-8222-222222222222": "x"
       },
       "expected_output": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "name": "json-depth-boundary",
+      "format": "json",
+      "default_mode": "raw",
+      "source": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "manifest": [],
+      "values": {},
+      "expected_output": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"
+    },
+    {
+      "name": "json-depth-exceeded",
+      "format": "json",
+      "default_mode": "raw",
+      "source": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "manifest": [],
+      "values": {},
+      "error_code": "template_invalid"
+    },
+    {
+      "name": "json-duplicate-keys",
+      "format": "json",
+      "default_mode": "raw",
+      "source": "{\"key\":1,\"key\":2}",
+      "manifest": [],
+      "values": {},
+      "expected_output": "{\"key\":1,\"key\":2}"
+    },
+    {
+      "name": "yaml-multiple-documents",
+      "format": "yaml",
+      "default_mode": "raw",
+      "source": "---\none: 1\n---\ntwo: 2\n",
+      "manifest": [],
+      "values": {},
+      "error_code": "template_invalid"
+    },
+    {
+      "name": "yaml-duplicate-keys",
+      "format": "yaml",
+      "default_mode": "raw",
+      "source": "key: one\nkey: two\n",
+      "manifest": [],
+      "values": {},
+      "error_code": "template_invalid"
+    },
+    {
+      "name": "yaml-custom-tags",
+      "format": "yaml",
+      "default_mode": "raw",
+      "source": "key: !custom value\n",
+      "manifest": [],
+      "values": {},
+      "error_code": "template_invalid"
+    },
+    {
+      "name": "yaml-inline-merge",
+      "format": "yaml",
+      "default_mode": "raw",
+      "source": "key: {<<: {one: 1}, two: 2}\n",
+      "manifest": [],
+      "values": {},
+      "expected_output": "key: {<<: {one: 1}, two: 2}\n"
+    },
+    {
+      "name": "dotenv-single-quoted-literal",
+      "format": "dotenv",
+      "default_mode": "raw",
+      "source": "KEY='${OTHER}'\n",
+      "manifest": [],
+      "values": {},
+      "expected_output": "KEY='${OTHER}'\n"
+    },
+    {
+      "name": "dotenv-ordinary-interpolation",
+      "format": "dotenv",
+      "default_mode": "raw",
+      "source": "OTHER=public\nKEY=${OTHER}\n",
+      "manifest": [],
+      "values": {},
+      "expected_output": "OTHER=public\nKEY=${OTHER}\n"
+    },
+    {
+      "name": "dotenv-comments-crlf",
+      "format": "dotenv",
+      "default_mode": "raw",
+      "source": "# comment\r\nexport KEY = value # end\r\n",
+      "manifest": [],
+      "values": {},
+      "expected_output": "# comment\r\nexport KEY = value # end\r\n"
+    },
+    {
+      "name": "dotenv-unclosed-quote",
+      "format": "dotenv",
+      "default_mode": "raw",
+      "source": "KEY=\"unclosed\n",
+      "manifest": [],
+      "values": {},
+      "error_code": "dotenv_unsupported"
+    },
+    {
+      "name": "dotenv-unknown-escape",
+      "format": "dotenv",
+      "default_mode": "raw",
+      "source": "KEY=\"bad\\q\"\n",
+      "manifest": [],
+      "values": {},
+      "error_code": "dotenv_unsupported"
+    },
+    {
+      "name": "dotenv-bare-cr",
+      "format": "dotenv",
+      "default_mode": "raw",
+      "source": "KEY=one\rOTHER=two",
+      "manifest": [],
+      "values": {},
+      "error_code": "dotenv_unsupported"
     }
   ]
 }

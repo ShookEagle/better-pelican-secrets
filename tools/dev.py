@@ -141,7 +141,7 @@ def main():
         (ROOT / ".work/panel/database/testing.sqlite").touch(exist_ok=True)
         php_run(["composer", "install", "--no-interaction", "--prefer-dist"])
     elif command == "go":
-        go_run(["test", *arguments])
+        go_run(["test", "-count=1", *arguments])
     elif command == "gofmt":
         go_run(["fmt", "./secrets"])
     elif command == "php":
@@ -149,6 +149,9 @@ def main():
         php_run(["php", "-d", "memory_limit=512M", "vendor/bin/phpunit", "-c", "/workspace/tests/phpunit.xml", *test_arguments])
     elif command == "pint":
         php_run(["php", "vendor/bin/pint", "/workspace/plugins", "/workspace/tests/php", *arguments])
+    elif command == "task6-check":
+        run([sys.executable, str(ROOT / "tools/dev.py"), "go", "./secrets"])
+        run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Templates"])
     elif command == "task4-check":
         run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Node/ProtocolTest.php"])
         run([sys.executable, str(ROOT / "tools/dev.py"), "go", "./secrets", "-run", "TestProtocol"])

@@ -161,16 +161,16 @@ Produce Go structs `Plan`, `FilePlan`, `StartupPlan`, `Bundle`, `AppliedReport`,
 
 **Interfaces:** `Compile(source []byte, file FilePlan, limits Limits) (CompiledTemplate, error)` and `Render(template CompiledTemplate, values map[string]string, remainingBytes int64) ([]byte, error)`. Go tokenization, byte counting, quoting, validation errors, and manifest checks must match Task 5.
 
-- [ ] **Step 1:** Write `TestSharedRenderingVectors`, `TestCRLFBOMAndInvalidUTF8`, `TestDotenvParity`, and `TestExpansionBudget`. Assertions load the same checked-in expected bytes/errors as PHP, including exactly 1,000 allowed references, rejected 1,001st reference, and budget termination before producing more than the permitted output.
+- [x] **Step 1:** Write `TestSharedRenderingVectors`, `TestCRLFBOMAndInvalidUTF8`, `TestDotenvParity`, and `TestExpansionBudget`. Assertions load the same checked-in expected bytes/errors as PHP, including exactly 1,000 allowed references, rejected 1,001st reference, and budget termination before producing more than the permitted output.
 
   ```go
   require.Equal(t, vector.ExpectedOutput, string(rendered))
   require.LessOrEqual(t, int64(len(rendered)), limits.RenderedBytes)
   ```
-- [ ] **Step 2:** Run `./tools/dev go ./secrets -run 'TestSharedRendering|TestCRLF|TestDotenv|TestExpansion'`; expected renderer failures.
-- [ ] **Step 3:** Implement the scanner/encoder and a deliberately bounded dotenv emitter/validator matching the shared phpdotenv fixtures. Reuse pinned Go YAML/JSON dependencies. Do not substitute a different generic dotenv library and assume dialect parity. Align YAML acceptance with Task 5 through fixtures and reject divergent constructs in structured mode.
-- [ ] **Step 4:** Run the Go command and `./tools/dev php tests/php/Templates`; both must pass the same vectors. The cross-language fixture suite is the authority, not independent plausible implementations.
-- [ ] **Step 5:** Commit `feat: render node templates with cross-language parity`.
+- [x] **Step 2:** Run `./tools/dev go ./secrets -run 'TestSharedRendering|TestCRLF|TestDotenv|TestExpansion'`; expected renderer failures.
+- [x] **Step 3:** Implement the scanner/encoder and a deliberately bounded dotenv emitter/validator matching the shared phpdotenv fixtures. Reuse pinned Go YAML/JSON dependencies. Do not substitute a different generic dotenv library and assume dialect parity. Align YAML acceptance with Task 5 through fixtures and reject divergent constructs in structured mode.
+- [x] **Step 4:** Run the Go command and `./tools/dev php tests/php/Templates`; both must pass the same vectors. The cross-language fixture suite is the authority, not independent plausible implementations.
+- [x] **Step 5:** Commit `feat: render node templates with cross-language parity`.
 
 ### Task 7: Save bindings and immutable desired plans
 
