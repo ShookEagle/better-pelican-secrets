@@ -144,16 +144,16 @@ Produce Go structs `Plan`, `FilePlan`, `StartupPlan`, `Bundle`, `AppliedReport`,
 
 **Interfaces:** `TemplateDocument(string $source, string $format, string $defaultMode, array $manifest)`; `TemplateCompiler::compile(TemplateDocument $document): CompiledTemplate`; `render(CompiledTemplate $template, array $valuesBySecretId): string`; `PreviewService::preview(User $actor, int $serverId, TemplateDocument $document): string` always uses deterministic dummy values. Compiled tokens reference immutable secret IDs, mode, and source spans; they never contain live values.
 
-- [ ] **Step 1:** Write `test_shared_rendering_vectors`, `test_preview_never_reads_secret_store`, `test_line_endings_and_encoding`, and `test_repeated_tokens_hit_expanded_budget`. Assert decoded JSON/YAML equals `"quote\" slash\\ dollar$ line\n雪"`, raw inserted token-looking text is not rescanned, CRLF outside tokens is preserved, an initial UTF-8 BOM is preserved only for text and rejected for structured outputs, and invalid UTF-8 is rejected. Dotenv vectors are read back with locked phpdotenv; reject unsupported multiline representations rather than inventing a dialect.
+- [x] **Step 1:** Write `test_shared_rendering_vectors`, `test_preview_never_reads_secret_store`, `test_line_endings_and_encoding`, and `test_repeated_tokens_hit_expanded_budget`. Assert decoded JSON/YAML equals `"quote\" slash\\ dollar$ line\n雪"`, raw inserted token-looking text is not rescanned, CRLF outside tokens is preserved, an initial UTF-8 BOM is preserved only for text and rejected for structured outputs, and invalid UTF-8 is rejected. Dotenv vectors are read back with locked phpdotenv; reject unsupported multiline representations rather than inventing a dialect.
 
   ```php
   $this->assertSame($vector['expected_output'], $rendered);
   $this->assertSame($originalValue, json_decode($jsonOutput, true)['apiKey']);
   ```
-- [ ] **Step 2:** Run `./tools/dev php tests/php/Templates`; expected missing compiler behavior.
-- [ ] **Step 3:** Implement a single-pass literal scanner, `{{secret:NAME}}`, explicit `|mode`, and `{{!secret:NAME}}`. Enforce manifest multisets, per-token escaping, whole-document validation by output format, limits, and no recursion/evaluation. Use Symfony YAML and phpdotenv already in the pinned Panel; do not install a general template engine. Reject YAML aliases/merge constructs when the two language validators cannot agree; generic text mode remains available.
-- [ ] **Step 4:** Repeat tests and shared vectors. Expected exact outputs/explicit errors with no source values or rendered fragments in diagnostics.
-- [ ] **Step 5:** Commit `feat: compile and preview generic secret templates`.
+- [x] **Step 2:** Run `./tools/dev php tests/php/Templates`; expected missing compiler behavior.
+- [x] **Step 3:** Implement a single-pass literal scanner, `{{secret:NAME}}`, explicit `|mode`, and `{{!secret:NAME}}`. Enforce manifest multisets, per-token escaping, whole-document validation by output format, limits, and no recursion/evaluation. Use Symfony YAML and phpdotenv already in the pinned Panel; do not install a general template engine. Reject YAML aliases/merge constructs when the two language validators cannot agree; generic text mode remains available.
+- [x] **Step 4:** Repeat tests and shared vectors. Expected exact outputs/explicit errors with no source values or rendered fragments in diagnostics.
+- [x] **Step 5:** Commit `feat: compile and preview generic secret templates`.
 
 ### Task 6: Implement matching Go rendering and validation
 

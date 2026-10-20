@@ -261,6 +261,278 @@
       "limits": {
         "rendered_bytes": 16
       }
+    },
+    {
+      "name": "dotenv-complex",
+      "format": "dotenv",
+      "default_mode": "dotenv",
+      "source": "API_KEY={{secret:KEY}}\r\n",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "dotenv",
+          "count": 1
+        }
+      ],
+      "values": {
+        "22222222-2222-4222-8222-222222222222": "quote\" slash\\ dollar$ line\n雪"
+      },
+      "expected_output": "API_KEY=\"quote\\\" slash\\\\ dollar\\$ line\\n雪\"\r\n"
+    },
+    {
+      "name": "dotenv-no-interpolation",
+      "format": "dotenv",
+      "default_mode": "dotenv",
+      "source": "OTHER=public\nAPI_KEY={{secret:KEY}}\n",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "dotenv",
+          "count": 1
+        }
+      ],
+      "values": {
+        "22222222-2222-4222-8222-222222222222": "${OTHER}"
+      },
+      "expected_output": "OTHER=public\nAPI_KEY=\"\\${OTHER}\"\n"
+    },
+    {
+      "name": "yaml-unicode-linebreaks",
+      "format": "yaml",
+      "default_mode": "yaml-string",
+      "source": "apiKey: {{secret:KEY}}\n",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "yaml-string",
+          "count": 1
+        }
+      ],
+      "values": {
+        "22222222-2222-4222-8222-222222222222": "  "
+      },
+      "expected_output": "apiKey: \"\\u0085\\u2028\\u2029\"\n"
+    },
+    {
+      "name": "yaml-controls",
+      "format": "yaml",
+      "default_mode": "yaml-string",
+      "source": "apiKey: {{secret:KEY}}\n",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "yaml-string",
+          "count": 1
+        }
+      ],
+      "values": {
+        "22222222-2222-4222-8222-222222222222": "￾￿"
+      },
+      "expected_output": "apiKey: \"\\u007f\\u0080\\u009f\\ufffe\\uffff\"\n"
+    },
+    {
+      "name": "json-html-literals",
+      "format": "json",
+      "default_mode": "json-string",
+      "source": "{\"apiKey\":{{secret:KEY}}}",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "json-string",
+          "count": 1
+        }
+      ],
+      "values": {
+        "22222222-2222-4222-8222-222222222222": "<tag>&/'"
+      },
+      "expected_output": "{\"apiKey\":\"<tag>&/'\"}"
+    },
+    {
+      "name": "raw-bom",
+      "format": "text",
+      "default_mode": "raw",
+      "source": "﻿{{secret:KEY}}",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "raw",
+          "count": 1
+        }
+      ],
+      "values": {
+        "22222222-2222-4222-8222-222222222222": "fixture-secret"
+      },
+      "expected_output": "﻿fixture-secret"
+    },
+    {
+      "name": "json-bom-rejected",
+      "format": "json",
+      "default_mode": "json-string",
+      "source": "﻿{\"apiKey\":{{secret:KEY}}}",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "json-string",
+          "count": 1
+        }
+      ],
+      "values": {
+        "22222222-2222-4222-8222-222222222222": "fixture-secret"
+      },
+      "error_code": "template_invalid"
+    },
+    {
+      "name": "invalid-utf8-source",
+      "format": "text",
+      "default_mode": "raw",
+      "source": "",
+      "manifest": [],
+      "values": {},
+      "error_code": "template_invalid",
+      "source_base64": "/w=="
+    },
+    {
+      "name": "nul-source",
+      "format": "text",
+      "default_mode": "raw",
+      "source": "bad\u0000{{secret:KEY}}",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "raw",
+          "count": 1
+        }
+      ],
+      "values": {
+        "22222222-2222-4222-8222-222222222222": "fixture-secret"
+      },
+      "error_code": "template_invalid"
+    },
+    {
+      "name": "nul-value",
+      "format": "text",
+      "default_mode": "raw",
+      "source": "{{secret:KEY}}",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "raw",
+          "count": 1
+        }
+      ],
+      "values": {
+        "22222222-2222-4222-8222-222222222222": "bad\u0000value"
+      },
+      "error_code": "value_invalid"
+    },
+    {
+      "name": "invalid-utf8-value",
+      "format": "text",
+      "default_mode": "raw",
+      "source": "{{secret:KEY}}",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "raw",
+          "count": 1
+        }
+      ],
+      "values": {
+        "22222222-2222-4222-8222-222222222222": ""
+      },
+      "error_code": "value_invalid",
+      "values_base64": {
+        "22222222-2222-4222-8222-222222222222": "/w=="
+      }
+    },
+    {
+      "name": "missing-value",
+      "format": "text",
+      "default_mode": "raw",
+      "source": "{{secret:KEY}}",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "raw",
+          "count": 1
+        }
+      ],
+      "values": {},
+      "error_code": "secret_missing"
+    },
+    {
+      "name": "dotenv-unsupported-control",
+      "format": "dotenv",
+      "default_mode": "dotenv",
+      "source": "API_KEY={{secret:KEY}}\n",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "dotenv",
+          "count": 1
+        }
+      ],
+      "values": {
+        "22222222-2222-4222-8222-222222222222": "\u0001"
+      },
+      "error_code": "dotenv_unsupported"
+    },
+    {
+      "name": "dotenv-physical-multiline",
+      "format": "dotenv",
+      "default_mode": "raw",
+      "source": "API_KEY=\"first\nsecond\"\n",
+      "manifest": [],
+      "values": {},
+      "error_code": "dotenv_unsupported"
+    },
+    {
+      "name": "yaml-alias-rejected",
+      "format": "yaml",
+      "default_mode": "raw",
+      "source": "base: &x {one: 1}\ncopy: *x\n",
+      "manifest": [],
+      "values": {},
+      "error_code": "template_invalid"
+    },
+    {
+      "name": "literal-json",
+      "format": "json",
+      "default_mode": "raw",
+      "source": "{\"apiKey\":\"{{!secret:KEY}}\"}",
+      "manifest": [],
+      "values": {},
+      "expected_output": "{\"apiKey\":\"{{secret:KEY}}\"}"
+    },
+    {
+      "name": "exact-reference-boundary",
+      "format": "text",
+      "default_mode": "raw",
+      "source": "{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}{{secret:KEY}}",
+      "manifest": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "name": "KEY",
+          "mode": "raw",
+          "count": 1000
+        }
+      ],
+      "values": {
+        "22222222-2222-4222-8222-222222222222": "x"
+      },
+      "expected_output": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     }
   ]
 }
