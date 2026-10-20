@@ -1,0 +1,5 @@
+{
+  "release": "v1.0.0-rc.1",
+  "panel": {"url": "https://github.com/pelican/panel.git", "commit": "46fc1cf0ebce3f43a5dd38bb2c4a89ad0f668e00"},
+  "wings": {"url": "https://github.com/pelican/wings.git", "commit": "7b489da7b8196d0b4baef3e2db062c06d743e2f9"}
+}
