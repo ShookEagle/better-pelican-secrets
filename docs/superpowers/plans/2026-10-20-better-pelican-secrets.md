@@ -127,16 +127,16 @@ All tasks follow red/green verification. A failure must be the intended missing 
 
 Produce Go structs `Plan`, `FilePlan`, `StartupPlan`, `Bundle`, `AppliedReport`, and `Limits` in `protocol.go`; metadata field names are exported PascalCase equivalents of the JSON names. `Plan` contains `Protocol int`, `ServerUUID string`, `Revision string`, `Files []FilePlan`, `Startup []StartupPlan`, and `Limits Limits`. `Bundle` adds `AttemptID string` and unexported `values map[string]string`, populated by a dedicated wire decoder; its formatter/debug/JSON output is metadata-only. `Limits` contains `SecretBytes`, `TemplateBytes`, `ReferencesPerFile`, `FilesPerServer`, `BundleBytes`, and `RenderedBytes` as `int64`. Reports include `Kind` (`applied`, `failed`, or `source-dirty`), `AttemptID`, `Revision`, `SourceDigests map[string]string`, version references, and `ErrorCode`; source-dirty reports never advance applied revision. PHP DTO properties use camelCase equivalents of the wire names. PHP `ApplicationStatus` contains `desiredRevision`, `appliedRevision`, `pending`, `dirty`, `lastAttemptId`, and nullable `lastErrorCode`. The test wrapper exports `BPS_PROTOCOL_FIXTURES` as the absolute `protocol/fixtures` directory for both languages; fixture tests fail, not skip, if it is missing.
 
-- [ ] **Step 1:** Write `test_revision_roundtrip_above_js_safe_integer` in both suites using revision `9007199254740993`, and `test_runtime_values_never_enter_plan_or_report`. Fixtures cover all rendering modes, literal escapes, mixed modes, duplicates, line endings, Unicode, malformed references, and budget errors.
+- [x] **Step 1:** Write `test_revision_roundtrip_above_js_safe_integer` in both suites using revision `9007199254740993`, and `test_runtime_values_never_enter_plan_or_report`. Fixtures cover all rendering modes, literal escapes, mixed modes, duplicates, line endings, Unicode, malformed references, and budget errors.
 
   ```php
   $this->assertSame('9007199254740993', $decoded->revision);
   $this->assertStringNotContainsString('fixture-secret', json_encode($plan));
   ```
-- [ ] **Step 2:** Run `./tools/dev php tests/php/Node/ProtocolTest.php` and `./tools/dev go ./secrets -run TestProtocol`; expect missing contracts.
-- [ ] **Step 3:** Implement strict schema/type decoding, protocol-version rejection, stable error codes, and reference-only DTO serialization. Reuse spec limits; add documented configurable transport/output bounds of 16 MiB per bundle and 64 MiB aggregate rendered bytes per start, checked before unbounded allocation. No DTO can silently stringify a plaintext bundle for logging.
-- [ ] **Step 4:** Repeat both commands; expected matching fixtures and lossless decimal-string revisions. Review schema examples for synthetic values only.
-- [ ] **Step 5:** Commit `feat: define versioned node protocol and shared fixtures`.
+- [x] **Step 2:** Run `./tools/dev php tests/php/Node/ProtocolTest.php` and `./tools/dev go ./secrets -run TestProtocol`; expect missing contracts.
+- [x] **Step 3:** Implement strict schema/type decoding, protocol-version rejection, stable error codes, and reference-only DTO serialization. Reuse spec limits; add documented configurable transport/output bounds of 16 MiB per bundle and 64 MiB aggregate rendered bytes per start, checked before unbounded allocation. No DTO can silently stringify a plaintext bundle for logging.
+- [x] **Step 4:** Repeat both commands; expected matching fixtures and lossless decimal-string revisions. Review schema examples for synthetic values only.
+- [x] **Step 5:** Commit `feat: define versioned node protocol and shared fixtures`.
 
 ### Task 5: Implement the PHP template compiler and safe preview
 

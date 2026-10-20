@@ -98,6 +98,35 @@ def php_run(arguments, app_env="testing"):
     return run([*args, IMAGE, *arguments])
 
 
+def go_run(arguments):
+    materialize()
+    overlay = ROOT / "node/overlay"
+    if overlay.exists():
+        shutil.copytree(overlay, ROOT / ".work/wings", dirs_exist_ok=True)
+    patch_directory = ROOT / "node/patches"
+    for patch in sorted(patch_directory.glob("*.patch")) if patch_directory.exists() else []:
+        args = ["git", "-C", str(ROOT / ".work/wings"), "apply"]
+        can_apply = subprocess.run([*args, "--check", str(patch)], capture_output=True).returncode == 0
+        if can_apply:
+            run([*args, str(patch)])
+        elif subprocess.run([*args, "--reverse", "--check", str(patch)], capture_output=True).returncode != 0:
+            raise RuntimeError("Pinned Wings patch cannot be applied: " + patch.name)
+    cache_id = hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
+    mounts = []
+    for target in ("go/pkg/mod", "root/.cache/go-build"):
+        volume = "bps-dev-" + cache_id + "-" + target.replace("/", "-").replace(".", "")
+        run([DOCKER, "volume", "create", "--label", "better-pelican-secrets.dev=true", volume], stdout=subprocess.DEVNULL)
+        mounts += ["--mount", "type=volume,source=" + volume + ",target=/" + target + ",volume-nocopy"]
+    image = json.loads((ROOT / "dev/images.lock.json").read_text(encoding="utf-8"))["go"]
+    run([DOCKER, "run", "--rm", "--label", "better-pelican-secrets.dev=true",
+         "--mount", "type=bind,source=" + str(ROOT) + ",target=/workspace",
+         *mounts, "--workdir", "/workspace/.work/wings",
+         "--env", "GOTOOLCHAIN=local", "--env", "BPS_PROTOCOL_FIXTURES=/workspace/protocol/fixtures",
+         image, "go", *arguments])
+    if arguments and arguments[0] == "fmt" and overlay.exists():
+        for source in overlay.rglob("*.go"):
+            shutil.copyfile(ROOT / ".work/wings" / source.relative_to(overlay), source)
+
 def main():
     if len(sys.argv) < 2:
         raise RuntimeError("Usage: tools/dev prepare|materialize|php|acceptance|probe")
@@ -111,11 +140,18 @@ def main():
         run([DOCKER, "compose", "-f", str(ROOT / "dev/compose.yaml"), "build", "php"])
         (ROOT / ".work/panel/database/testing.sqlite").touch(exist_ok=True)
         php_run(["composer", "install", "--no-interaction", "--prefer-dist"])
+    elif command == "go":
+        go_run(["test", *arguments])
+    elif command == "gofmt":
+        go_run(["fmt", "./secrets"])
     elif command == "php":
         test_arguments = ["/workspace/" + arg if arg.startswith("tests/") else arg for arg in arguments]
         php_run(["php", "-d", "memory_limit=512M", "vendor/bin/phpunit", "-c", "/workspace/tests/phpunit.xml", *test_arguments])
     elif command == "pint":
         php_run(["php", "vendor/bin/pint", "/workspace/plugins", "/workspace/tests/php", *arguments])
+    elif command == "task4-check":
+        run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Node/ProtocolTest.php"])
+        run([sys.executable, str(ROOT / "tools/dev.py"), "go", "./secrets", "-run", "TestProtocol"])
     elif command == "task1-check":
         run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Compatibility/IntegrationSeamsTest.php"])
         run([sys.executable, str(ROOT / "tools/dev.py"), "acceptance"])

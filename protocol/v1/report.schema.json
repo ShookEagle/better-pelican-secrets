@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://better-pelican-secrets.invalid/protocol/v1/report.schema.json",
+  "$comment": "Byte budgets, uniqueness by identity, exact version/reference coverage, and canonical JSON/type rules are also checked by both decoders.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "server_uuid",
+    "kind",
+    "attempt_id",
+    "revision",
+    "source_digests",
+    "versions",
+    "error_code"
+  ],
+  "properties": {
+    "protocol": {
+      "const": 1,
+      "type": "integer"
+    },
+    "server_uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\\s\\S])"
+    },
+    "kind": {
+      "enum": [
+        "applied",
+        "failed",
+        "source-dirty"
+      ]
+    },
+    "attempt_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\\s\\S])"
+    },
+    "revision": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]{0,18}|1[0-7][0-9]{18}|18[0-3][0-9]{17}|184[0-3][0-9]{16}|1844[0-5][0-9]{15}|18446[0-6][0-9]{14}|184467[0-3][0-9]{13}|1844674[0-3][0-9]{12}|184467440[0-6][0-9]{10}|1844674407[0-2][0-9]{9}|18446744073[0-6][0-9]{8}|1844674407370[0-8][0-9]{6}|18446744073709[0-4][0-9]{5}|184467440737095[0-4][0-9]{4}|18446744073709550[0-9]{3}|18446744073709551[0-5][0-9]{2}|1844674407370955160[0-9]{1}|1844674407370955161[0-4]|18446744073709551615)$(?![\\s\\S])"
+    },
+    "source_digests": {
+      "type": "object",
+      "maxProperties": 256,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\\s\\S])"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+      }
+    },
+    "versions": {
+      "type": "array",
+      "maxItems": 256000,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/versionRef"
+      }
+    },
+    "error_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        null,
+        "protocol_invalid",
+        "protocol_unsupported",
+        "limit_exceeded",
+        "secret_missing",
+        "template_invalid",
+        "manifest_mismatch",
+        "path_unsafe",
+        "node_incompatible",
+        "panel_unavailable",
+        "revision_conflict",
+        "mount_failed",
+        "start_failed",
+        "decryption_failed",
+        "internal_error",
+        "value_invalid",
+        "dotenv_unsupported"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "failed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "error_code": {
+            "type": "string",
+            "enum": [
+              "protocol_invalid",
+              "protocol_unsupported",
+              "limit_exceeded",
+              "secret_missing",
+              "template_invalid",
+              "manifest_mismatch",
+              "path_unsafe",
+              "node_incompatible",
+              "panel_unavailable",
+              "revision_conflict",
+              "mount_failed",
+              "start_failed",
+              "decryption_failed",
+              "internal_error",
+              "value_invalid",
+              "dotenv_unsupported"
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "error_code": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "protocol": 1,
+      "server_uuid": "11111111-1111-4111-8111-111111111111",
+      "kind": "applied",
+      "attempt_id": "44444444-4444-4444-8444-444444444444",
+      "revision": "9007199254740993",
+      "source_digests": {
+        "33333333-3333-4333-8333-333333333333": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "versions": [
+        {
+          "secret_id": "22222222-2222-4222-8222-222222222222",
+          "version": 1
+        }
+      ],
+      "error_code": null
+    }
+  ],
+  "$defs": {
+    "versionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secret_id",
+        "version"
+      ],
+      "properties": {
+        "secret_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\\s\\S])"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      }
+    },
+    "manifestEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secret_id",
+        "name",
+        "mode",
+        "count"
+      ],
+      "properties": {
+        "secret_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\\s\\S])"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$(?![\\s\\S])"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "raw",
+            "json-string",
+            "yaml-string",
+            "dotenv"
+          ]
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        }
+      }
+    },
+    "filePlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file_id",
+        "source",
+        "destination",
+        "format",
+        "default_mode",
+        "manifest"
+      ],
+      "properties": {
+        "file_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\\s\\S])"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "^[^/\\\\\\x00-\\x1f\\x7f]+(?:/[^/\\\\\\x00-\\x1f\\x7f]+)*$(?![\\s\\S])",
+          "not": {
+            "pattern": "(^|/)\\.{1,2}(/|$)"
+          }
+        },
+        "destination": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "^/[^/\\\\\\x00-\\x1f\\x7f]+(?:/[^/\\\\\\x00-\\x1f\\x7f]+)*$(?![\\s\\S])",
+          "not": {
+            "pattern": "(^|/)\\.{1,2}(/|$)"
+          }
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "text",
+            "json",
+            "yaml",
+            "dotenv"
+          ]
+        },
+        "default_mode": {
+          "type": "string",
+          "enum": [
+            "raw",
+            "json-string",
+            "yaml-string",
+            "dotenv"
+          ]
+        },
+        "manifest": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/manifestEntry"
+          }
+        }
+      }
+    },
+    "startupPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "env",
+        "secret_id"
+      ],
+      "properties": {
+        "env": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$(?![\\s\\S])"
+        },
+        "secret_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\\s\\S])"
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secret_bytes",
+        "template_bytes",
+        "references_per_file",
+        "files_per_server",
+        "bundle_bytes",
+        "rendered_bytes"
+      ],
+      "properties": {
+        "secret_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536,
+          "default": 65536
+        },
+        "template_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4194304,
+          "default": 4194304
+        },
+        "references_per_file": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 1000
+        },
+        "files_per_server": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256,
+          "default": 256
+        },
+        "bundle_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216,
+          "default": 16777216
+        },
+        "rendered_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 67108864,
+          "default": 67108864
+        }
+      }
+    }
+  }
+}
