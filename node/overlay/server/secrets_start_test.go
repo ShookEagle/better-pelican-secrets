@@ -94,6 +94,7 @@ type secretPowerEnvironment struct {
 	starts        int
 	snapshots     []map[string]string
 	failStart     bool
+	creates       int
 }
 
 func (e *secretPowerEnvironment) Config() *environment.Configuration { return e.configuration }
@@ -336,5 +337,46 @@ func TestRetiredEmptyPlanReassertsReceiptOnNextStart(t *testing.T) {
 	defer c.mu.Unlock()
 	if c.requests != 2 {
 		t.Fatal("retirement could not recover a lost receipt on a later start")
+	}
+}
+
+func TestPairedNodeRejectsMissingPlanAfterFreshLoad(t *testing.T) {
+	s, _, _ := secretPowerFixture(t)
+	cfg, err := config.NewAtPath(filepath.Join(t.TempDir(), "config.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.AuthenticationToken = "test-token"
+	// Panel-style JSON cannot turn off this trusted YAML-only requirement.
+	if err := json.Unmarshal([]byte(`{"system":{"secrets_integration_required":false}}`), cfg); err != nil {
+		t.Fatal(err)
+	}
+	config.Set(cfg)
+	s.cfg.mu.Lock()
+	s.cfg.Secrets = nil
+	s.cfg.mu.Unlock()
+	wire, _ := json.Marshal(map[string]any{"uuid": s.ID(), "environment": map[string]string{}})
+	if err := s.SyncWithConfiguration(remote.ServerConfigurationResponse{Settings: wire}); err == nil {
+		t.Fatal("fresh paired daemon accepted missing plugin metadata")
+	}
+}
+
+func (e *secretPowerEnvironment) Create() error { e.creates++; return nil }
+func TestProtectedCreateEnvironmentDefersDockerUntilStart(t *testing.T) {
+	s, _, e := secretPowerFixture(t)
+	if err := s.CreateEnvironment(); err != nil {
+		t.Fatal(err)
+	}
+	if e.creates != 0 {
+		t.Fatal("protected install/transfer created a container without a bundle")
+	}
+	s.cfg.mu.Lock()
+	s.cfg.Secrets = nil
+	s.cfg.mu.Unlock()
+	if err := s.CreateEnvironment(); err != nil {
+		t.Fatal(err)
+	}
+	if e.creates != 1 {
+		t.Fatal("ordinary environment creation changed")
 	}
 }

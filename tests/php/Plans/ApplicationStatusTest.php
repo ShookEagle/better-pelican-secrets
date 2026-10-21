@@ -168,4 +168,24 @@ final class ApplicationStatusTest extends NodeHttpTestCase
         $source = '{"key":{{secret:RCON}}}';
         $this->postNode('application-report', $this->report('source-dirty'))->assertOk()->assertJsonPath('dirty', false);
     }
+
+    public function test_failed_restart_is_pending_even_when_desired_equals_last_applied(): void
+    {
+        $this->apply();
+        $this->attemptId = '55555555-5555-4555-8555-555555555555';
+        $this->postNode('runtime-bundle', $this->bundleRequest())->assertOk();
+        $failed = $this->report('failed');
+        $failed['source_digests'] = (object) [];
+        $failed['error_code'] = 'path_unsafe';
+        $this->postNode('application-report', $failed)->assertOk();
+        $status = app(ApplicationStatusService::class)->forServer($this->server);
+        $this->assertSame($status->desiredRevision, $status->appliedRevision);
+        $this->assertTrue($status->pending);
+        $this->assertSame('path_unsafe', $status->lastErrorCode);
+        $this->attemptId = '66666666-6666-4666-8666-666666666666';
+        $this->apply();
+        $status = app(ApplicationStatusService::class)->forServer($this->server);
+        $this->assertFalse($status->pending);
+        $this->assertNull($status->lastErrorCode);
+    }
 }

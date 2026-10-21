@@ -1,0 +1,28 @@
+name: Verify native secrets integration
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare exact source pins and development tools
+        run: ./tools/dev prepare
+      - name: Install through native Panel tooling
+        run: ./tools/dev install-fixture
+      - name: Verify PHP, protocol, Go and package policies
+        run: ./tools/dev check
+      - name: Build candidate from exact pinned sources
+        run: ./tools/dev candidate
+      - name: Exercise every required live case without skips
+        run: ./tools/dev acceptance
+      - name: Reproduce qualified artifacts
+        run: ./tools/dev package

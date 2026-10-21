@@ -34,3 +34,21 @@ Live Docker checks use synthetic values and random, labelled resources, removing
 These mount checks characterize the underlying source-volume contract; later tasks test Wings SFTP/backup behavior and the full start lifecycle. Missing Docker or another prerequisite is an error, never a skipped successful check.
 
 The ignored execution ledger is under `.superpowers/sdd/2026-10-20-better-pelican-secrets/`. Resume from its first unfinished task.
+
+## Complete release gates
+
+Run tools/dev check, tools/dev candidate, tools/dev acceptance, then tools/dev package sequentially. check runs plugin PHP tests, Pint, the pinned native Panel suite in an isolated Linux tmpfs copy with file-backed SQLite, Go vet/tests/race checks and project Go formatting. Candidate reconstruction starts from a fresh immutable Wings Git archive, applies the ordered patches and production overlay, and builds Linux amd64 with trimpath/buildvcs=false.
+
+The acceptance runner records actual named passes, failures and skips under ignored .work/acceptance-results.json and maps all ten design cases to executed native tests. A focused -k run never creates full qualification evidence. Release verification checks the candidate ZIP, provenance and current-source matrix. package requires matching successful check/acceptance reports, reconstructs artifacts again, compares their hashes with the qualified candidate and records evidence digests in provenance.
+
+The real native stack uses an isolated native Panel copy and database, actual ZIP import/install/reinstall, real patched and stock Wings processes, a private test CA, verified HTTPS in both directions, non-root Docker games, SSH/SFTP with its pinned generated host public key, local backups and a second node. Shared-engine fixtures wait for source container deletion before reusing a UUID on the destination. No fake node transport is installed into that stack.
+
+All live resources use fresh names and the project label; cleanup removes only those identities. Missing infrastructure and skipped live cases fail qualification. The qualifying local VM reports Linux 6.18.33.2-microsoft-standard-WSL2, x86_64 and Docker 29.9.1. The supported minimum openat2 API is not a claim that every kernel/configuration has been tested.
+
+Native Docker Desktop fixture allocations use 127.0.0.2: Wings rewrites literal 127.0.0.1 to its bridge interface, and Desktop rejected that custom bridge IP for published ports. The explicit loopback alias was characterized with the pinned fixture image. This changes fixture allocation metadata, not the production adapter.
+
+The pinned upstream tests have three methods whose data-provider arity PHPUnit 12 rejects. tools/upstream.py copies those test files into the disposable runner and adds only unused parameters to their signatures, preserving every assertion and running the otherwise rejected data sets. It does not alter the pinned checkout or shipped Panel code, suppress warnings or skip executable cases. In-memory SQLite is unsuitable for this suite because its reconnect/truncation lifecycle loses tables.
+
+The upstream PluginFixtureTest::test_index is an intentionally skipped empty placeholder (it contains no request or assertion). JUnit verification accepts only that exact preexisting placeholder and records it separately; any other skip, warning, risky/incomplete case or failure blocks checks. Live acceptance permits no skips. The upstream fixture APP_URL retains its expected trailing slash rather than rewriting snapshots.
+
+Go vet compares the complete patched tree against a fresh immutable archive of the pinned Wings commit. Every baseline diagnostic remains visible and is recorded in check evidence; new diagnostics or unrecognized output fail. This keeps existing upstream copy-lock/unreachable findings visible without disabling analyzers for project code.

@@ -45,6 +45,9 @@ def materialize(apply_node=True):
     if stamped not in source:
         raise RuntimeError("Pinned Panel release version stamp failed")
     app_config.write_text(source, encoding="utf-8")
+    panel_changes = subprocess.check_output(["git", "-C", str(ROOT / ".work/panel"), "-c", "core.autocrlf=false", "diff", "--name-only", "HEAD"], text=True).splitlines()
+    if any(name != "config/app.php" for name in panel_changes):
+        raise RuntimeError("Unrecorded edits to the pinned Panel source")
     sync_plugin()
     if apply_node:
         patches.sync_node()
@@ -186,6 +189,9 @@ def main():
         if label != "true":
             raise RuntimeError("Refusing to stop an unlabelled container")
         run([DOCKER, "stop", name])
+    elif command == "task15-check":
+        for gate in ["check", "candidate", "acceptance", "package"]:
+            run([sys.executable, str(ROOT / "tools/dev.py"), gate])
     elif command == "task14-check":
         run([sys.executable, str(ROOT / "tools/dev.py"), "php", "tests/php/Lifecycle"])
         run([sys.executable, str(ROOT / "tools/dev.py"), "go", "./..."])
@@ -222,8 +228,11 @@ def main():
         run([sys.executable, str(ROOT / "tools/dev.py"), "acceptance"])
     elif command == "acceptance":
         materialize()
-        run([sys.executable, "-m", "unittest", "discover", "-s", "tests/acceptance",
-             "-p", "test_*.py", "-v", *arguments], env={**os.environ, "BPS_DOCKER": DOCKER})
+        run([sys.executable, str(ROOT / "tools/acceptance.py"), *arguments], env={**os.environ, "BPS_DOCKER": DOCKER})
+    elif command in ("candidate", "package"):
+        run([sys.executable, str(ROOT / "tools/package.py"), command], env={**os.environ, "BPS_DOCKER": DOCKER})
+    elif command == "check":
+        run([sys.executable, str(ROOT / "tools/check.py")], env={**os.environ, "BPS_DOCKER": DOCKER})
     elif command == "install-fixture":
         php_run(["php", "artisan", "migrate", "--force", "--no-interaction"])
         php_run(["php", "artisan", "p:plugin:install", "better-pelican-secrets", "--no-interaction"], app_env="local")

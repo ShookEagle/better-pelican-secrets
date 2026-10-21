@@ -26,6 +26,11 @@ func (s *Server) hasSecretPlan() bool {
 	plan := s.cfg.Secrets
 	return plan != nil && (len(plan.Files) > 0 || len(plan.Startup) > 0 || plan.Revision != "0" && plan.Revision != s.secretRetiredRevision)
 }
+func (s *Server) hasRetiredSecretPlan() bool {
+	s.cfg.mu.RLock()
+	defer s.cfg.mu.RUnlock()
+	return s.secretRetiredRevision != ""
+}
 func (s *Server) reportSecretResult(report secrets.AppliedReport) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

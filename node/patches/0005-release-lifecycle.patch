@@ -1,0 +1,40 @@
+diff --git a/config/config.go b/config/config.go
+index f2431dc..4bb2999 100644
+--- a/config/config.go
++++ b/config/config.go
+@@ -142,6 +142,10 @@ type SystemConfiguration struct {
+ 	// Private tmpfs provisioned by the node operator; never supplied by Panel.
+ 	SecretsRuntimeDirectory string `default:"/run/better-pelican-secrets" json:"-" yaml:"secrets_runtime_directory"`
+ 
++	// This paired adapter requires explicit plugin metadata, including empty plans.
++	// Host operators may opt out only after every secret runtime is retired.
++	SecretsIntegrationRequired bool `default:"true" json:"-" yaml:"secrets_integration_required"`
++
+ 	// Directory where logs for server installations and other wings events are logged.
+ 	LogDirectory string `default:"/var/log/pelican" json:"-" yaml:"log_directory"`
+ 
+diff --git a/server/server.go b/server/server.go
+index 613a134..a3f20c9 100644
+--- a/server/server.go
++++ b/server/server.go
+@@ -321,7 +321,7 @@ func (s *Server) SyncWithConfiguration(cfg remote.ServerConfigurationResponse) e
+ 		}
+ 		c.Secrets = &plan
+ 	}
+-	if s.hasSecretPlan() && c.Secrets == nil {
++	if (s.hasSecretPlan() || config.Get().System.SecretsIntegrationRequired && !s.hasRetiredSecretPlan()) && c.Secrets == nil {
+ 		return errors.New("node_incompatible")
+ 	}
+ 
+@@ -364,6 +364,11 @@ func (s *Server) CreateEnvironment() error {
+ 		}
+ 	}
+ 
++	// Installation/transfer configures ordinary storage only. A protected
++	// container must be created by normal power handling with a fresh bundle.
++	if s.hasSecretPlan() {
++		return nil
++	}
+ 	return s.Environment.Create()
+ }
+ 
