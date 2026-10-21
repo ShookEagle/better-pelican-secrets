@@ -2,6 +2,22 @@
 
 Roll out on a non-production node/server first. Install both the native Panel plugin and matching patched Wings; stock nodes cannot activate bindings.
 
+## Import the plugin by URL
+
+1. Open **Admin → Plugins** in your Panel.
+2. Choose **Import from URL** and paste this versioned ZIP link:
+
+   ```text
+   https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.0/better-pelican-secrets-0.1.0.zip
+   ```
+
+3. Import it, then choose **Install** and enable **Better Pelican Secrets**. Native installation runs migrations and builds assets.
+4. Complete the node setup below before creating bindings. Importing the plugin does not replace Wings or provision the node's tmpfs.
+
+If your Panel host cannot download from GitHub, [download the ZIP](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.0/better-pelican-secrets-0.1.0.zip) in your browser and use **Import from file** instead.
+
+Download the [matching Linux amd64 Wings binary](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.0/wings-bps-0.1.0-linux-amd64), [SHA256SUMS](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.0/SHA256SUMS), and [provenance.json](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.0/provenance.json) from the same release. The [release page](https://github.com/ShookEagle/better-pelican-secrets/releases/tag/v0.1.0) also includes the source patches.
+
 ## Requirements
 
 Target exact Panel/Wings v1.0.0-rc.1 commits in upstream.lock.json. Development uses PHP 8.4.26, Go 1.26.0, Node 22 and pinned Composer dependencies. Only Linux amd64 is built and exercised. Require Linux 5.6+ with working openat2, rootful local Unix Docker and identity UID/GID mapping. Remote/rootless Docker and guessed remaps fail closed.
@@ -18,9 +34,11 @@ Set system.secrets_runtime_directory in Wings YAML for a different private tmpfs
 
 ## Install the pair
 
-Back up Panel data and APP_KEY together. Preserve previous keys; lost keys mean lost values. Verify SHA256SUMS and provenance.json from a qualified release. Replace the node binary with wings-bps-0.1.0-linux-amd64 through normal host maintenance, retain the old binary, restart Wings and check its version/tmpfs.
+Back up Panel data and APP_KEY together. Preserve previous keys; lost keys mean lost values. Verify SHA256SUMS and provenance.json from the same qualified release.
 
-Import better-pelican-secrets-0.1.0.zip through the native plugin importer and install/enable it. Folder/manifest IDs match and no install-state meta is shipped. Native installation runs migrations and builds assets.
+Import, install and enable the Panel plugin first, using the URL above or the ZIP file. Folder/manifest IDs match and no install-state meta is shipped.
+
+After preparing tmpfs and the service dependency, replace the node binary with wings-bps-0.1.0-linux-amd64 through normal host maintenance. Retain the old binary, restart Wings and check its version/tmpfs. Use the binary and plugin from the same release.
 
 Use verified HTTPS and trusted certificate chains in both directions. Do not use ignore-certificate-errors. Capability checks reject incompatible nodes; preparation rechecks runtime/identity constraints.
 
