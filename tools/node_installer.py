@@ -151,7 +151,7 @@ class Host:
                 continue
             info = candidate.stat()
             if info.st_uid != 0 or info.st_mode & 0o022:
-                raise InstallError("Installation paths must be root-owned and not writable by other users.")
+                raise InstallError("Installation paths must be root-owned and not writable by other users: " + str(candidate))
         if target.exists() and (not target.is_dir() if directory else not target.is_file()):
             raise InstallError("Unexpected installation path type.")
 
