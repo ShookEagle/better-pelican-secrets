@@ -63,6 +63,13 @@ jobs:
         run: ./tools/dev acceptance
       - name: Reproduce qualified artifacts
         run: ./tools/dev package
+      - name: Save qualified release files
+        uses: actions/upload-artifact@v7
+        with:
+          name: qualified-release
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
       - name: Snapshot dependency caches
         if: success() && steps.harness.outputs.cache-hit != 'true'
         run: python3 tools/ci_cache.py save full
