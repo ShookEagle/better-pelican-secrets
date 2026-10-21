@@ -182,7 +182,7 @@ class SystemdInstallerTest(unittest.TestCase):
         occupied = []
         if identifiers:
             for network in json.loads(command("docker", "network", "inspect", *identifiers).stdout):
-                for config in network.get("IPAM", {}).get("Config", []):
+                for config in (network.get("IPAM") or {}).get("Config") or []:
                     if config.get("Subnet"):
                         occupied.append(ipaddress.ip_network(config["Subnet"]))
         for route in json.loads(command("ip", "-json", "route", "show").stdout):
