@@ -2,20 +2,57 @@ name: Verify native secrets integration
 
 on:
   push:
+    branches: [main]
+    tags: ['v*']
+    paths-ignore: ['docs/**', '*.md']
   pull_request:
+    paths-ignore: ['docs/**', '*.md']
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' && github.ref_type != 'tag' }}
+
 jobs:
+  checks:
+    if: github.event_name != 'workflow_dispatch' && github.ref_type != 'tag'
+    name: Check ${{ matrix.suite }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [php, go, upstream]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-harness
+        id: harness
+        with:
+          suite: ${{ matrix.suite }}
+      - name: Run complete suite
+        run: ./tools/dev check --suite '${{ matrix.suite }}'
+      - name: Snapshot dependency caches
+        if: success() && steps.harness.outputs.cache-hit != 'true'
+        run: python3 tools/ci_cache.py save '${{ matrix.suite }}'
+      - uses: actions/cache/save@v6
+        if: success() && steps.harness.outputs.cache-hit != 'true'
+        with:
+          path: .work/ci-cache
+          key: ${{ steps.harness.outputs.cache-key }}
   qualify:
+    if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
+    name: Full release qualification
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - name: Prepare exact source pins and development tools
-        run: ./tools/dev prepare
+      - uses: ./.github/actions/setup-harness
+        id: harness
+        with:
+          suite: full
       - name: Install through native Panel tooling
         run: ./tools/dev install-fixture
       - name: Verify PHP, protocol, Go and package policies
@@ -26,3 +63,11 @@ jobs:
         run: ./tools/dev acceptance
       - name: Reproduce qualified artifacts
         run: ./tools/dev package
+      - name: Snapshot dependency caches
+        if: success() && steps.harness.outputs.cache-hit != 'true'
+        run: python3 tools/ci_cache.py save full
+      - uses: actions/cache/save@v6
+        if: success() && steps.harness.outputs.cache-hit != 'true'
+        with:
+          path: .work/ci-cache
+          key: ${{ steps.harness.outputs.cache-key }}

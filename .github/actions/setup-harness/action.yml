@@ -1,0 +1,43 @@
+name: Prepare cached native harness
+description: Restore dependency volumes and build the pinned PHP image with shared layer caching
+inputs:
+  suite:
+    description: php, go, upstream or full
+    required: true
+outputs:
+  cache-key:
+    value: ${{ steps.dependencies.outputs.cache-primary-key }}
+  cache-hit:
+    value: ${{ steps.dependencies.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache/restore@v6
+      id: dependencies
+      with:
+        path: .work/ci-cache
+        key: ${{ runner.os }}-deps-v1-${{ inputs.suite }}-${{ hashFiles('upstream.lock.json', 'dev/images.lock.json', 'dev/php.Dockerfile') }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-deps-v1-${{ inputs.suite }}-${{ hashFiles('upstream.lock.json', 'dev/images.lock.json', 'dev/php.Dockerfile') }}-
+    - name: Restore Docker dependency volumes
+      shell: bash
+      run: python3 tools/ci_cache.py restore '${{ inputs.suite }}'
+    - uses: docker/setup-buildx-action@v4
+      if: inputs.suite != 'go'
+    - uses: docker/build-push-action@v7
+      if: inputs.suite != 'go'
+      with:
+        context: .
+        file: dev/php.Dockerfile
+        tags: better-pelican-secrets-dev-php:local
+        load: true
+        cache-from: type=gha,scope=bps-php
+        cache-to: type=gha,mode=max,scope=bps-php
+    - name: Prepare PHP dependencies
+      if: inputs.suite != 'go'
+      shell: bash
+      run: ./tools/dev prepare --use-existing-php-image
+    - name: Materialize pinned Go sources
+      if: inputs.suite == 'go'
+      shell: bash
+      run: ./tools/dev materialize

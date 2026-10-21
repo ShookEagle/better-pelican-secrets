@@ -75,6 +75,13 @@ def require_docker():
         raise RuntimeError("The approved harness requires a Linux Docker engine.")
 
 
+def ensure_image(image):
+    # Docker writes cold-pull progress to stderr, which is not analyzer output.
+    present = subprocess.run([DOCKER, "image", "inspect", image], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if present.returncode:
+        run([DOCKER, "pull", image])
+
+
 def php_run(arguments, app_env="testing", env_overrides=None, extra_docker_args=None):
     sync_plugin()
     variables = {
@@ -139,7 +146,12 @@ def main():
     require_docker()
     if command == "prepare":
         materialize()
-        run([DOCKER, "compose", "-f", str(ROOT / "dev/compose.yaml"), "build", "php"])
+        if arguments == ["--use-existing-php-image"]:
+            run([DOCKER, "image", "inspect", IMAGE], stdout=subprocess.DEVNULL)
+        elif not arguments:
+            run([DOCKER, "compose", "-f", str(ROOT / "dev/compose.yaml"), "build", "php"])
+        else:
+            raise RuntimeError("Unknown prepare arguments")
         (ROOT / ".work/panel/database/testing.sqlite").touch(exist_ok=True)
         php_run(["composer", "install", "--no-interaction", "--prefer-dist"])
     elif command == "go":
@@ -232,7 +244,7 @@ def main():
     elif command in ("candidate", "package"):
         run([sys.executable, str(ROOT / "tools/package.py"), command], env={**os.environ, "BPS_DOCKER": DOCKER})
     elif command == "check":
-        run([sys.executable, str(ROOT / "tools/check.py")], env={**os.environ, "BPS_DOCKER": DOCKER})
+        run([sys.executable, str(ROOT / "tools/check.py"), *arguments], env={**os.environ, "BPS_DOCKER": DOCKER})
     elif command == "install-fixture":
         php_run(["php", "artisan", "migrate", "--force", "--no-interaction"])
         php_run(["php", "artisan", "p:plugin:install", "better-pelican-secrets", "--no-interaction"], app_env="local")

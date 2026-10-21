@@ -22,6 +22,7 @@ def diagnostics(checkout):
         dev.run([dev.DOCKER, "volume", "create", "--label", "better-pelican-secrets.dev=true", volume], stdout=subprocess.DEVNULL)
         mounts += ["--mount", "type=volume,source=" + volume + ",target=/" + target + ",volume-nocopy"]
     image = json.loads((ROOT / "dev/images.lock.json").read_text(encoding="utf-8"))["go"]
+    dev.ensure_image(image)
     result = subprocess.run([dev.DOCKER, "run", "--rm", "--label", "better-pelican-secrets.dev=true",
         "--mount", "type=bind,source=" + str(ROOT) + ",target=/workspace,readonly", *mounts,
         "--workdir", "/workspace/" + checkout.relative_to(ROOT).as_posix(),
