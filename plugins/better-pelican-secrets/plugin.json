@@ -2,7 +2,7 @@
   "id": "better-pelican-secrets",
   "name": "Better Pelican Secrets",
   "author": "ShookEagle",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Explicitly authorized server secrets with generic runtime configuration templates.",
   "category": "plugin",
   "url": "https://github.com/ShookEagle/better-pelican-secrets",

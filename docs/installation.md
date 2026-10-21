@@ -8,15 +8,15 @@ Roll out on a non-production node/server first. Install both the native Panel pl
 2. Choose **Import from URL** and paste this versioned ZIP link:
 
    ```text
-   https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.0/better-pelican-secrets-0.1.0.zip
+   https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.1/better-pelican-secrets-0.1.1.zip
    ```
 
 3. Import it, then choose **Install** and enable **Better Pelican Secrets**. Native installation runs migrations and builds assets.
 4. Complete the node setup below before creating bindings. Importing the plugin does not replace Wings or provision the node's tmpfs.
 
-If your Panel host cannot download from GitHub, [download the ZIP](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.0/better-pelican-secrets-0.1.0.zip) in your browser and use **Import from file** instead.
+If your Panel host cannot download from GitHub, [download the ZIP](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.1/better-pelican-secrets-0.1.1.zip) in your browser and use **Import from file** instead.
 
-Download the [matching Linux amd64 Wings binary](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.0/wings-bps-0.1.0-linux-amd64), [SHA256SUMS](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.0/SHA256SUMS), and [provenance.json](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.0/provenance.json) from the same release. The [release page](https://github.com/ShookEagle/better-pelican-secrets/releases/tag/v0.1.0) also includes the source patches.
+Download the [matching Linux amd64 Wings binary](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.1/wings-bps-0.1.1-linux-amd64), [SHA256SUMS](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.1/SHA256SUMS), and [provenance.json](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.1/provenance.json) from the same release. The [release page](https://github.com/ShookEagle/better-pelican-secrets/releases/tag/v0.1.1) also includes the source patches.
 
 ## Requirements
 
@@ -38,7 +38,7 @@ Back up Panel data and APP_KEY together. Preserve previous keys; lost keys mean 
 
 Import, install and enable the Panel plugin first, using the URL above or the ZIP file. Folder/manifest IDs match and no install-state meta is shipped.
 
-After preparing tmpfs and the service dependency, replace the node binary with wings-bps-0.1.0-linux-amd64 through normal host maintenance. Retain the old binary, restart Wings and check its version/tmpfs. Use the binary and plugin from the same release.
+After preparing tmpfs and the service dependency, replace the node binary with wings-bps-0.1.1-linux-amd64 through normal host maintenance. Retain the old binary, restart Wings and check its version/tmpfs. Use the binary and plugin from the same release.
 
 Use verified HTTPS and trusted certificate chains in both directions. Do not use ignore-certificate-errors. Capability checks reject incompatible nodes; preparation rechecks runtime/identity constraints.
 

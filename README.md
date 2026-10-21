@@ -6,15 +6,15 @@ Ordinary files keep markers such as {{secret:PLUGIN_API_KEY|json-string}}. On no
 
 Only the exact Panel/Wings v1.0.0-rc.1 commits in [upstream.lock.json](upstream.lock.json) are targeted. Use only artifacts whose provenance records completed qualification; candidate builds do not establish a release.
 
-## Install v0.1.0
+## Install v0.1.1
 
 In Panel, open **Admin → Plugins → Import from URL**, paste the following link, then install and enable the imported plugin:
 
 ```text
-https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.0/better-pelican-secrets-0.1.0.zip
+https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.1/better-pelican-secrets-0.1.1.zip
 ```
 
-Install the **matching patched Wings** on each node before creating bindings. The [release downloads](https://github.com/ShookEagle/better-pelican-secrets/releases/tag/v0.1.0) include the Linux amd64 binary, source patches, checksums and qualification provenance. Follow the [installation guide](docs/installation.md) for node setup and compatibility requirements.
+Install the **matching patched Wings** on each node before creating bindings. The [release downloads](https://github.com/ShookEagle/better-pelican-secrets/releases/tag/v0.1.1) include the Linux amd64 binary, source patches, checksums and qualification provenance. Follow the [installation guide](docs/installation.md) for node setup and compatibility requirements.
 
 - [Installation](docs/installation.md)
 - [Operations and security limits](docs/operations.md)

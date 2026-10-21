@@ -13,7 +13,7 @@ import shutil
 import dev
 
 ROOT = dev.ROOT
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 DIST = ROOT / "dist"
 
 
@@ -79,20 +79,20 @@ def candidate():
         clean = Path(temporary).resolve()
         if not clean.is_relative_to((ROOT / ".work").resolve()):
             raise RuntimeError("Release checkout escaped the intended workspace")
-        tree = subprocess.check_output(["git", "-C", str(ROOT / ".work/wings"), "archive", "--format=tar", "HEAD"])
+        tree = subprocess.check_output(["git", "-c", "core.autocrlf=false", "-C", str(ROOT / ".work/wings"), "archive", "--format=tar", "HEAD"])
         with tarfile.open(fileobj=io.BytesIO(tree)) as source:
             source.extractall(clean, filter="data")
         dev.run(["git", "init", "--quiet", str(clean)])
         for patch in sorted((ROOT / "node/patches").glob("*.patch")):
-            dev.run(["git", "-C", str(clean), "apply", "--check", str(patch)])
-            dev.run(["git", "-C", str(clean), "apply", str(patch)])
+            dev.run(["git", "-c", "core.autocrlf=false", "-C", str(clean), "apply", "--check", str(patch)])
+            dev.run(["git", "-c", "core.autocrlf=false", "-C", str(clean), "apply", str(patch)])
         shutil.copytree(ROOT / "node/overlay", clean, dirs_exist_ok=True, ignore=shutil.ignore_patterns("*_test.go"))
         dev.run([dev.DOCKER, "run", "--rm", "--label", "better-pelican-secrets.dev=true",
                  "--mount", "type=bind,source=" + str(ROOT) + ",target=/workspace", *mounts,
                  "--workdir", "/workspace/" + clean.relative_to(ROOT).as_posix(), "--env", "GOTOOLCHAIN=local",
                  "--env", "CGO_ENABLED=0", "--env", "GOOS=linux", "--env", "GOARCH=amd64",
                  image, "go", "build", "-trimpath", "-buildvcs=false", "-ldflags",
-                 "-s -w -X github.com/pelican/wings/system.Version=1.0.0-rc.1+bps.0.1.0",
+                 "-s -w -X github.com/pelican/wings/system.Version=1.0.0-rc.1+bps.0.1.1",
                  "-o", "/workspace/dist/" + binary, "."])
     # Executing the candidate proves the declared architecture runs in the qualifying VM.
     dev.run([dev.DOCKER, "run", "--rm", "--label", "better-pelican-secrets.dev=true",

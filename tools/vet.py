@@ -47,7 +47,7 @@ def compare():
         clean = Path(temporary).resolve()
         if not clean.is_relative_to((ROOT / ".work").resolve()):
             raise RuntimeError("Vet checkout escaped its workspace")
-        tree = subprocess.check_output(["git", "-C", str(ROOT / ".work/wings"), "archive", "--format=tar", "HEAD"])
+        tree = subprocess.check_output(["git", "-c", "core.autocrlf=false", "-C", str(ROOT / ".work/wings"), "archive", "--format=tar", "HEAD"])
         with tarfile.open(fileobj=io.BytesIO(tree)) as archive:
             archive.extractall(clean, filter="data")
         baseline = diagnostics(clean)

@@ -52,7 +52,7 @@ if (!$app->environment('local') || base_path() !== '/fixture/panel'
 try {
     $action = $argv[1] ?? '';
     if ($action === 'import') {
-        $id = app(PluginService::class)->downloadPluginFromFile(new UploadedFile('/workspace/dist/better-pelican-secrets-0.1.0.zip', 'release.zip', 'application/zip', null, true));
+        $id = app(PluginService::class)->downloadPluginFromFile(new UploadedFile('/workspace/dist/better-pelican-secrets-0.1.1.zip', 'release.zip', 'application/zip', null, true));
         if ($id !== 'better-pelican-secrets') {
             throw new RuntimeException('Wrong imported identity.');
         }

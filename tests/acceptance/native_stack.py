@@ -141,7 +141,7 @@ class NativeStack:
         stock = ROOT / ".work/stock-wings"
         if not stock.exists():
             stock.mkdir()
-            archive = subprocess.check_output(["git", "-C", str(ROOT / ".work/wings"), "archive", "--format=tar", "HEAD"])
+            archive = subprocess.check_output(["git", "-c", "core.autocrlf=false", "-C", str(ROOT / ".work/wings"), "archive", "--format=tar", "HEAD"])
             with tarfile.open(fileobj=io.BytesIO(archive)) as source:
                 source.extractall(stock, filter="data")
         cache_id = hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
@@ -207,7 +207,7 @@ class NativeStack:
                     "--mount", "type=volume,source=" + data_volume + ",target=" + data_point,
                     "--mount", "type=volume,source=" + runtime_volume + ",target=" + runtime_point,
                     "--env", "SSL_CERT_FILE=/fixture/tls/ca.crt", self.go_image,
-                    ("/workspace/.work/stock-wings.bin" if host=="stock" else "/workspace/dist/wings-bps-0.1.0-linux-amd64"), "--config", "/fixture/" + host + ".json"]
+                    ("/workspace/.work/stock-wings.bin" if host=="stock" else "/workspace/dist/wings-bps-0.1.1-linux-amd64"), "--config", "/fixture/" + host + ".json"]
             self.wings[host] = self.start_container(host, args)
         def ready():
             result = self.exec(self.proxy, "/workspace/.work/native-tls", "-mode", "request",
