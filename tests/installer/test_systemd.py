@@ -65,7 +65,8 @@ class SystemdInstallerTest(unittest.TestCase):
     def setUp(self):
         require_disposable_runner()
         self.tag = "bps-installer-ci-" + uuid.uuid4().hex[:12]
-        self.directory = Path("/opt") / self.tag
+        # Hosted runners make /opt writable by their non-root tool installer.
+        self.directory = Path("/var/lib") / self.tag
         self.runtime = Path("/run") / self.tag
         self.service = self.tag + ".service"
         self.unit = Path("/etc/systemd/system") / self.service
@@ -324,7 +325,7 @@ class SystemdInstallerTest(unittest.TestCase):
     def cleanup_fixture(self):
         # Every resource is checked against its staged exact fixture identity.
         self.assertTrue(self.tag.startswith("bps-installer-ci-"))
-        self.assertEqual(self.directory, Path("/opt") / self.tag)
+        self.assertEqual(self.directory, Path("/var/lib") / self.tag)
         self.assertEqual(self.runtime, Path("/run") / self.tag)
         self.assertEqual(self.unit, Path("/etc/systemd/system") / (self.tag + ".service"))
         if self.unit.exists():
