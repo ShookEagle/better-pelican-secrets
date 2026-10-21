@@ -32,6 +32,9 @@ jobs:
         id: harness
         with:
           suite: ${{ matrix.suite }}
+      - name: Initialize native PHP fixture
+        if: matrix.suite == 'php'
+        run: ./tools/dev install-fixture
       - name: Run complete suite
         run: ./tools/dev check --suite '${{ matrix.suite }}'
       - name: Snapshot dependency caches
