@@ -93,12 +93,13 @@ class NodeArtifactTests(unittest.TestCase):
             with zipfile.ZipFile(ROOT / "dist/wings-source-0.1.1.zip") as archive:
                 archive.extractall(folder)
             relative = "/workspace/" + folder.relative_to(ROOT).as_posix()
-            subprocess.run([docker, "run", "--rm", "--label", "better-pelican-secrets.dev=true",
-                "--mount", "type=bind,source=" + str(ROOT) + ",target=/workspace", *mounts,
+            result = subprocess.check_output([docker, "run", "--rm", "--label", "better-pelican-secrets.dev=true",
+                "--mount", "type=bind,source=" + str(ROOT) + ",target=/workspace,readonly", *mounts,
+                "--tmpfs", "/source-build:rw,mode=0700,size=512m",
                 "--workdir", relative, "--env", "GOTOOLCHAIN=local",
-                image, "bash", "node/build.sh", relative + "/checkout", relative + "/rebuilt-wings"], check=True, timeout=300)
+                image, "bash", "-ec", "bash node/build.sh /source-build/checkout /source-build/rebuilt-wings; sha256sum /source-build/rebuilt-wings"], text=True, timeout=300)
             expected = hashlib.sha256((ROOT / "dist/wings-bps-0.1.1-linux-amd64").read_bytes()).hexdigest()
-            self.assertEqual(expected, hashlib.sha256((folder / "rebuilt-wings").read_bytes()).hexdigest())
+            self.assertEqual(expected + "  /source-build/rebuilt-wings", result.strip())
 
     def test_node_artifact_policy(self):
         source = ROOT / "dist/wings-source-0.1.1.zip"

@@ -38,10 +38,11 @@ jobs:
       - name: Run complete suite
         run: ./tools/dev check --suite '${{ matrix.suite }}'
       - name: Snapshot dependency caches
-        if: success() && steps.harness.outputs.cache-hit != 'true'
+        if: ${{ !cancelled() && steps.harness.outcome == 'success' && steps.harness.outputs.cache-hit != 'true' }}
+        id: cache-snapshot
         run: python3 tools/ci_cache.py save '${{ matrix.suite }}'
       - uses: actions/cache/save@v6
-        if: success() && steps.harness.outputs.cache-hit != 'true'
+        if: ${{ !cancelled() && steps.cache-snapshot.outcome == 'success' && steps.harness.outputs.cache-hit != 'true' }}
         with:
           path: .work/ci-cache
           key: ${{ steps.harness.outputs.cache-key }}
@@ -66,6 +67,8 @@ jobs:
         run: ./tools/dev acceptance
       - name: Reproduce qualified artifacts
         run: ./tools/dev package
+      - name: Include qualification evidence
+        run: cp .work/check-results.json .work/acceptance-results.json dist/
       - name: Save qualified release files
         uses: actions/upload-artifact@v7
         with:
@@ -74,10 +77,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Snapshot dependency caches
-        if: success() && steps.harness.outputs.cache-hit != 'true'
+        if: ${{ !cancelled() && steps.harness.outcome == 'success' && steps.harness.outputs.cache-hit != 'true' }}
+        id: cache-snapshot
         run: python3 tools/ci_cache.py save full
       - uses: actions/cache/save@v6
-        if: success() && steps.harness.outputs.cache-hit != 'true'
+        if: ${{ !cancelled() && steps.cache-snapshot.outcome == 'success' && steps.harness.outputs.cache-hit != 'true' }}
         with:
           path: .work/ci-cache
           key: ${{ steps.harness.outputs.cache-key }}

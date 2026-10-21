@@ -19,6 +19,7 @@ runs:
         key: ${{ runner.os }}-deps-v1-${{ inputs.suite }}-${{ hashFiles('upstream.lock.json', 'dev/images.lock.json', 'dev/php.Dockerfile') }}-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-deps-v1-${{ inputs.suite }}-${{ hashFiles('upstream.lock.json', 'dev/images.lock.json', 'dev/php.Dockerfile') }}-
+          ${{ inputs.suite == 'full' && format('{0}-deps-v1-go-{1}-', runner.os, hashFiles('upstream.lock.json', 'dev/images.lock.json', 'dev/php.Dockerfile')) || '' }}
     - name: Restore Docker dependency volumes
       shell: bash
       run: python3 tools/ci_cache.py restore '${{ inputs.suite }}'
