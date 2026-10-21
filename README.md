@@ -14,7 +14,13 @@ In Panel, open **Admin → Plugins → Import from URL**, paste the following li
 https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.1/better-pelican-secrets-0.1.1.zip
 ```
 
-Install the **matching patched Wings** on each node before creating bindings. The [release downloads](https://github.com/ShookEagle/better-pelican-secrets/releases/tag/v0.1.1) include the Linux amd64 binary, source patches, checksums and qualification provenance. Follow the [installation guide](docs/installation.md) for node setup and compatibility requirements.
+Then run the node installer once on each existing Ubuntu/Debian amd64 systemd node:
+
+```sh
+curl -fsSL https://github.com/ShookEagle/better-pelican-secrets/releases/download/node-installer-v0.1.0/install-node.sh | sudo bash
+```
+
+It installs the **matching patched Wings**, configures private tmpfs and its service dependency, and restarts Wings using the node's existing configuration. Wings automatically loads the servers assigned to that node in Pelican. Bindings and access grants remain explicit. See the [installation guide](docs/installation.md#one-command-node-setup) for dry runs, prerequisites, capacity and recovery.
 
 - [Installation](docs/installation.md)
 - [Operations and security limits](docs/operations.md)

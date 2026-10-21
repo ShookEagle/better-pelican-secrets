@@ -18,6 +18,32 @@ If your Panel host cannot download from GitHub, [download the ZIP](https://githu
 
 Download the [matching Linux amd64 Wings binary](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.1/wings-bps-0.1.1-linux-amd64), [SHA256SUMS](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.1/SHA256SUMS), and [provenance.json](https://github.com/ShookEagle/better-pelican-secrets/releases/download/v0.1.1/provenance.json) from the same release. The [release page](https://github.com/ShookEagle/better-pelican-secrets/releases/tag/v0.1.1) also includes the source patches.
 
+## One-command node setup
+
+After installing and enabling the Panel plugin, run this once on each existing Ubuntu 22.04+/Debian 12+ **amd64 systemd node**:
+
+```sh
+curl -fsSL https://github.com/ShookEagle/better-pelican-secrets/releases/download/node-installer-v0.1.0/install-node.sh | sudo bash
+```
+
+This installer is versioned separately and installs the qualified Wings **v0.1.1** above. It verifies pinned SHA-256 hashes for both the binary and qualified provenance, reuses your existing service/configuration/node credentials, checks the Panel inventory over verified HTTPS, provisions a root-owned 0700 tmpfs, and adds the Wings service's mount dependency. It restarts Wings and verifies the running process. It does not reboot the host or send game-server restart commands; normal Wings recovery still applies.
+
+Wings automatically loads every server already assigned to this node in Pelican. New servers follow normal Pelican provisioning. The installer does not scan arbitrary directories, import plaintext keys, create bindings or grant secret access. Configure those explicitly on the server's Secrets page.
+
+Inspect the script or preview the operation without installing packages or changing node files, mounts or services:
+
+```sh
+curl -fsSL https://github.com/ShookEagle/better-pelican-secrets/releases/download/node-installer-v0.1.0/install-node.sh | sudo bash -s -- --dry-run
+```
+
+Dry runs require Python 3.10+ and `python3-yaml` already installed. A normal run installs those prerequisites through apt if needed. Repeating a completed installation leaves a healthy Wings process and existing private tmpfs in place.
+
+The new tmpfs defaults to a **256 MiB maximum**, shared by the node's servers. Set its initial capacity with `--tmpfs-size 1G`; use `--service custom.service` for a different existing service, or `--panel-ca-file /path/to/ca.pem` for your existing private Panel CA. The configuration path is discovered from the service's `--config` argument. Existing live tmpfs capacity is preserved; an explicit size mismatch is rejected instead of remounting it.
+
+Backups of the previous binary and configuration are root-private under `/var/backups/better-pelican-secrets/`. If replacement fails, the installer restores those files. After a restart attempt it leaves Wings stopped for operator review; automatically starting an older daemon could bypass newly configured secret bindings. Private tmpfs and its service dependency remain in place, preserving runtime files held by running containers. The installer never unmounts or deletes that storage.
+
+Containerized/rootless/remapped deployments, unsupported Wings versions, disabled integration, unsafe existing mounts and conflicting operator-owned unit/drop-in files are rejected before replacement. Services using `EnvironmentFile` or private mount namespaces need the manual setup below. On an empty node, plugin availability cannot be inferred from server metadata; keep the Panel plugin enabled before provisioning its first server.
+
 ## Requirements
 
 Target exact Panel/Wings v1.0.0-rc.1 commits in upstream.lock.json. Development uses PHP 8.4.26, Go 1.26.0, Node 22 and pinned Composer dependencies. Only Linux amd64 is built and exercised. Require Linux 5.6+ with working openat2, rootful local Unix Docker and identity UID/GID mapping. Remote/rootless Docker and guessed remaps fail closed.

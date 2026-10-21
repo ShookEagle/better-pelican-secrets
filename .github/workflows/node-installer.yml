@@ -1,0 +1,61 @@
+name: Verify node installer on systemd
+
+on:
+  push:
+    branches: [main, 'codex/**']
+    paths:
+      - 'install-node.sh'
+      - 'tools/node_installer.py'
+      - 'tools/build_node_installer.py'
+      - 'tests/tools/test_node_installer.py'
+      - 'tests/installer/**'
+      - '.github/workflows/node-installer.yml'
+  pull_request:
+    paths:
+      - 'install-node.sh'
+      - 'tools/node_installer.py'
+      - 'tools/build_node_installer.py'
+      - 'tests/tools/test_node_installer.py'
+      - 'tests/installer/**'
+      - '.github/workflows/node-installer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: node-installer-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  systemd:
+    name: Published Wings on a disposable Ubuntu systemd host
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install test prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-yaml openssl
+          sudo systemctl start docker
+          docker info >/dev/null
+      - name: Run installer unit tests
+        run: python3 -m unittest discover -s tests/tools -p test_node_installer.py -v
+      - name: Verify generated one-command installer
+        run: |
+          python3 tools/build_node_installer.py
+          git diff --exit-code -- install-node.sh
+          bash -n install-node.sh
+      - name: Exercise real systemd, tmpfs, Docker and TLS
+        run: |
+          set -o pipefail
+          sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT python3 tests/installer/test_systemd.py 2>&1 | tee node-installer-systemd.log
+      - name: Save integration evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: node-installer-systemd
+          path: node-installer-systemd.log
+          if-no-files-found: ignore
+          retention-days: 7
