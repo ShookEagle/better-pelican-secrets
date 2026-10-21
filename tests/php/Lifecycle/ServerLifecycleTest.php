@@ -3,14 +3,17 @@
 require_once dirname(__DIR__) . '/Support/NodeHttpTestCase.php';
 
 use App\Enums\ServerState;
+use App\Http\Resources\Daemon\ServerConfigurationCollection;
 use App\Models\Backup;
 use App\Models\BackupHost;
 use App\Models\Egg;
 use App\Models\Node;
+use App\Models\Server;
 use App\Models\Subuser;
 use App\Models\User;
 use App\Repositories\Daemon\DaemonBackupRepository;
 use App\Services\Servers\ServerConfigurationStructureService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use ShookEagle\BetterPelicanSecrets\Plans\BindingService;
@@ -64,23 +67,40 @@ final class ServerLifecycleTest extends NodeHttpTestCase
         $this->server->update(['image' => 'example.test/new-game:fixture']);
         $this->assertNotSame($this->revision, app(PlanService::class)->current($this->server)->revision);
         $this->server->update(['egg_id' => Egg::factory()->create()->id]);
-        try {
-            app(ServerConfigurationStructureService::class)->handle($this->server);
-            $this->fail('Unknown bound variable reached node configuration');
-        } catch (DomainException) {
-            $this->assertSame(1, DB::table('bps_startup_bindings')->where('server_id', $this->server->id)->count());
-        }
+        $configuration = app(ServerConfigurationStructureService::class)->handle($this->server);
+        $this->assertSame('RCON_PASSWORD', $configuration['secrets']['startup'][0]['env']);
+        $this->revision = $configuration['secrets']['revision'];
+        $this->postNode('runtime-bundle', $this->bundleRequest())->assertStatus(422)->assertJsonPath('error', 'protocol_invalid');
+        $this->assertSame(1, DB::table('bps_startup_bindings')->where('server_id', $this->server->id)->count());
         app(BindingService::class)->unbindStartup($this->actor, $this->server, 'RCON_PASSWORD');
         $this->assertSame([], app(PlanService::class)->current($this->server)->startup);
     }
 
-    public function test_incomplete_setup_vetoes_configuration_and_bundle_delivery(): void
+    public function test_incomplete_setup_allows_configuration_but_vetoes_bundle_delivery(): void
     {
         DB::table('bps_setup_failures')->insert(['server_id' => $this->server->id, 'file_id' => '33333333-3333-4333-8333-333333333333',
             'source' => 'config.json', 'error_code' => 'template_invalid', 'updated_at' => now()]);
         $this->postNode('runtime-bundle', $this->bundleRequest())->assertStatus(503)->assertDontSee('fixture-secret');
-        $this->expectException(DomainException::class);
-        app(ServerConfigurationStructureService::class)->handle($this->server);
+        $configuration = app(ServerConfigurationStructureService::class)->handle($this->server);
+        $this->assertSame($this->revision, $configuration['secrets']['revision']);
+    }
+
+    public function test_revision_zero_incomplete_setup_is_isolated_in_native_fleet_enumeration(): void
+    {
+        $blocked = Server::factory()->create(['node_id' => $this->server->node_id]);
+        $healthy = Server::factory()->create(['node_id' => $this->server->node_id]);
+        DB::table('bps_setup_failures')->insert(['server_id' => $blocked->id,
+            'file_id' => '33333333-3333-4333-8333-333333333333', 'source' => 'config.json',
+            'error_code' => 'template_invalid', 'updated_at' => now()]);
+        $rows = (new ServerConfigurationCollection(collect([$blocked, $healthy, $this->server])))->toArray(Request::create('/api/remote/servers'));
+        $this->assertCount(3, $rows);
+        $this->assertNotSame('0', $rows[0]['settings']['secrets']['revision']);
+        $this->assertSame([], $rows[0]['settings']['secrets']['files']);
+        $this->assertSame('0', $rows[1]['settings']['secrets']['revision']);
+        $this->assertSame($rows[0]['settings']['secrets']['revision'], app(PlanService::class)->current($blocked)->revision);
+        $this->server = $blocked;
+        $this->revision = $rows[0]['settings']['secrets']['revision'];
+        $this->postNode('runtime-bundle', $this->bundleRequest())->assertStatus(503)->assertJsonPath('error', 'template_invalid');
     }
 
     public function test_server_deletion_removes_plugin_data_but_keeps_audit(): void

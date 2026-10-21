@@ -70,10 +70,7 @@ final class BindingService
         return DB::transaction(function () use ($actor, $server, $env, $secretId) {
             $server = $this->lockServer($actor, $server, 'startup.update');
             $this->authorizer->authorize($actor, SecretOperation::Bind, new SecretScope($server->id, $secretId));
-            $variable = EggVariable::query()->where('egg_id', $server->egg_id)->where('env_variable', $env)->first();
-            if (!$variable || $variable->env_variable !== $env) {
-                throw new DomainException('startup_variable_unknown');
-            }
+            $variable = $this->startupVariable($actor, $server, $env);
             $existing = StartupBinding::query()->where('server_id', $server->id)->where('env', $env)->first();
             if ($existing) {
                 $this->authorizer->authorize($actor, SecretOperation::Bind, new SecretScope($server->id, $existing->secret_id));
@@ -109,6 +106,9 @@ final class BindingService
     {
         return DB::transaction(function () use ($actor, $server, $env) {
             $server = $this->lockServer($actor, $server, 'startup.update');
+            if (!$this->authorizer->isRoot($actor)) {
+                $this->startupVariable($actor, $server, $env);
+            }
             $binding = StartupBinding::query()->where('server_id', $server->id)->where('env', $env)->firstOrFail();
             $this->authorizer->authorize($actor, SecretOperation::Bind, new SecretScope($server->id, $binding->secret_id));
             $binding->delete();
@@ -140,6 +140,20 @@ final class BindingService
             }
             app(SecretStore::class)->delete($secretId, $actor);
         }, 3);
+    }
+
+    /** Root uses native administrative rights; members retain the egg's destination restrictions. */
+    public function startupVariable(User $actor, Server $server, string $env): EggVariable
+    {
+        $variable = EggVariable::query()->where('egg_id', $server->egg_id)->where('env_variable', $env)->first();
+        if (!$variable || $variable->env_variable !== $env) {
+            throw new DomainException('startup_variable_unknown');
+        }
+        if (!$this->authorizer->isRoot($actor) && (!$variable->user_viewable || !$variable->user_editable)) {
+            throw new AuthorizationException('Startup access denied.');
+        }
+
+        return $variable;
     }
 
     private function lockServer(User $actor, Server $server, string $ordinaryPermission): Server

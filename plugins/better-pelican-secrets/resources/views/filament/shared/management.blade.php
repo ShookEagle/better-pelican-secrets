@@ -1,11 +1,11 @@
-<div style="display:grid;gap:1.5rem" x-data="{ revealed: '', access: {users:[],delegable:[]}, scope: null, recipient: '', operations: [] }"
+<div wire:poll.5s style="display:grid;gap:1.5rem" x-data="{ revealed: '', access: {users:[],delegable:[]}, scope: null, recipient: '', operations: [] }"
     @click.capture="if (!$refs.reveal.contains($event.target)) revealed = ''" @change.capture="revealed = ''"
     @bps-reveal.window="revealed = $event.detail.value; $refs.reveal.showModal(); setTimeout(() => { revealed = ''; $refs.reveal.close() }, 30000)"
     @bps-access.window="access = $event.detail.details; scope = $event.detail.scope; operations = []; recipient = ''; if (!$refs.access.open) $refs.access.showModal()"
     x-on:livewire:navigating.window="revealed = ''; $refs.reveal.close(); $refs.access.close()">
     <x-filament::section heading="Application status">
         <p><strong>{{ $server->name }}</strong> · Desired {{ $status->desiredRevision }} · Applied {{ $status->appliedRevision ?? 'Never applied' }}</p>
-        <p>{{ $status->pending ? __('better-pelican-secrets::secrets.pending') : ($status->appliedRevision === null ? 'No runtime secret bindings are configured.' : 'Saved configuration is applied.') }}</p>
+        <p>{{ $status->observationStale ? 'Source observation unavailable. Last delivery is recorded; current source state is unknown. Start normally to resume observation.' : ($status->pending ? __('better-pelican-secrets::secrets.pending') : ($status->appliedRevision === null ? 'No runtime secret bindings are configured.' : 'Saved configuration is applied.')) }}</p>
         @if ($status->dirty)<p>Source files have changed since the last successful start.</p>@endif
         @if ($status->lastErrorCode)<p>Configuration status: {{ $status->lastErrorCode }}</p>@endif
         <p style="margin-top:.75rem">{{ __('better-pelican-secrets::secrets.runtime_note') }}</p>

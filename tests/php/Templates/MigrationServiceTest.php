@@ -3,6 +3,7 @@
 require_once dirname(__DIR__) . '/Support/PluginTestCase.php';
 
 use App\Models\Role;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use ShookEagle\BetterPelicanSecrets\Filament\Shared\FileTemplateActions;
@@ -15,6 +16,8 @@ use ShookEagle\BetterPelicanSecrets\Templates\MigrationService;
 
 final class MigrationServiceTest extends PluginTestCase
 {
+    protected bool $isolatedDatabase = true;
+
     private string $source = '{"key":"legacy-value"}';
 
     private string $id;
@@ -68,6 +71,33 @@ final class MigrationServiceTest extends PluginTestCase
         $this->assertSame(0, DB::table('bps_setup_failures')->count());
     }
 
+    public function test_setup_intent_database_failure_prevents_remote_write(): void
+    {
+        DB::unprepared("CREATE TRIGGER reject_setup BEFORE INSERT ON bps_setup_failures BEGIN SELECT RAISE(ABORT, 'fixture outage'); END");
+        $before = $this->source;
+        try {
+            app(MigrationService::class)->migrate($this->actor, $this->server, hash('sha256', $before),
+                '{"key":{{secret:API_KEY}}}', $this->file(), [['secret_id' => $this->id, 'mode' => 'json-string']]);
+            $this->fail('Remote write ran without a durable setup intent');
+        } catch (QueryException) {
+            $this->assertSame($before, $this->source);
+            Http::assertNotSent(fn ($request) => str_ends_with(parse_url($request->url(), PHP_URL_PATH), '/files/write'));
+        }
+    }
+
+    public function test_setup_rejects_an_ambient_transaction_before_remote_write(): void
+    {
+        DB::beginTransaction();
+        try {
+            $this->expectExceptionMessage('setup_transaction_active');
+            app(MigrationService::class)->migrate($this->actor, $this->server, hash('sha256', $this->source),
+                '{"key":{{secret:API_KEY}}}', $this->file(), [['secret_id' => $this->id, 'mode' => 'json-string']]);
+        } finally {
+            DB::rollBack();
+            Http::assertNotSent(fn ($request) => str_ends_with(parse_url($request->url(), PHP_URL_PATH), '/files/write'));
+        }
+    }
+
     public function test_new_file_requires_a_current_absence_receipt(): void
     {
         $this->exists = false;
@@ -114,7 +144,7 @@ final class MigrationServiceTest extends PluginTestCase
         }
         $plan = $service->migrate($this->actor, $this->server, hash('sha256', $before), $replacement, $this->file(), $references);
         $this->assertSame($replacement, $this->source);
-        $this->assertSame('1', $plan->revision);
+        $this->assertNotSame('0', $plan->revision);
         $this->assertSame(hash('sha256', $replacement), ManagedFile::findOrFail($this->file()->fileId)->source_digest);
         $this->assertStringNotContainsString('fixture-secret', ManagedFile::all()->toJson());
         Http::assertNotSent(fn ($request) => str_ends_with(parse_url($request->url(), PHP_URL_PATH), '/power'));

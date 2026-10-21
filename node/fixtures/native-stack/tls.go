@@ -86,7 +86,7 @@ func main() {
 		must(os.WriteFile("/fixture/wings-host.pub", ssh.MarshalAuthorizedKey(signer.PublicKey()), 0644))
 		return
 	}
-	if *mode == "sftp" {
+	if *mode == "sftp" || *mode == "sftp-write" {
 		password, err := os.ReadFile(*token)
 		must(err)
 		hostPublic, err := os.ReadFile(*hostkey)
@@ -107,6 +107,14 @@ func main() {
 		client, err := sftp.NewClient(connection)
 		must(err)
 		defer client.Close()
+		if *mode == "sftp-write" {
+			file, err := client.Create(*path)
+			must(err)
+			_, err = io.Copy(file, io.LimitReader(os.Stdin, 4<<20))
+			must(err)
+			must(file.Close())
+			return
+		}
 		file, err := client.Open(*path)
 		must(err)
 		defer file.Close()

@@ -6,9 +6,11 @@ use App\Filament\Server\Pages\Startup;
 use App\Models\EggVariable;
 use App\Models\Role;
 use App\Models\ServerVariable;
+use App\Models\Subuser;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\View\Component;
 use Livewire\Livewire;
@@ -25,6 +27,8 @@ use ShookEagle\BetterPelicanSecrets\Secrets\SecretValue;
 
 final class BindingActionsTest extends PluginTestCase
 {
+    protected bool $isolatedDatabase = true;
+
     private string $id;
 
     protected function setUp(): void
@@ -44,6 +48,54 @@ final class BindingActionsTest extends PluginTestCase
         $user->assignRole(Role::getRootAdmin());
 
         return $user;
+    }
+
+    public function test_startup_picker_hides_nonmutable_variables_from_nonroot_members(): void
+    {
+        app(GrantService::class)->grant($this->root(), $this->actor, new SecretScope($this->server->id), [Op::Bind]);
+        foreach ([[0, 0], [0, 1], [1, 0]] as [$viewable, $editable]) {
+            EggVariable::factory()->create(['egg_id' => $this->server->egg_id, 'user_viewable' => $viewable,
+                'user_editable' => $editable, 'default_value' => 'hidden-low-entropy-value']);
+        }
+        $this->assertSame([], app(StartupBindingActions::class)->variables($this->actor, $this->server));
+    }
+
+    public function test_nonroot_cannot_bind_migrate_or_unbind_nonmutable_startup_variables(): void
+    {
+        $root = $this->root();
+        $subuser = User::factory()->create();
+        Subuser::create(['server_id' => $this->server->id, 'user_id' => $subuser->id,
+            'permissions' => ['startup.read', 'startup.update']]);
+        foreach ([$this->actor, $subuser] as $actor) {
+            app(GrantService::class)->grant($root, $actor, new SecretScope($this->server->id), [Op::Bind]);
+            foreach ([[0, 0], [0, 1], [1, 0]] as [$viewable, $editable]) {
+                $variable = EggVariable::factory()->create(['egg_id' => $this->server->egg_id,
+                    'user_viewable' => $viewable, 'user_editable' => $editable, 'default_value' => '']);
+                $actions = app(StartupBindingActions::class);
+                try {
+                    $actions->bind($actor, $this->server, $variable->env_variable, $this->id);
+                    $this->fail('Nonmutable startup variable was bound');
+                } catch (AuthorizationException) {
+                    $this->assertFalse(DB::table('bps_startup_bindings')->where('env', $variable->env_variable)->exists());
+                }
+                $variable->update(['default_value' => 'private-legacy']);
+                try {
+                    $actions->migrate($actor, $this->server, $variable->env_variable, $this->id, hash('sha256', 'private-legacy'), true);
+                    $this->fail('Nonmutable startup variable was migrated');
+                } catch (AuthorizationException) {
+                    $this->assertFalse(ServerVariable::where('variable_id', $variable->id)->exists());
+                }
+                $variable->update(['default_value' => '']);
+                app(BindingService::class)->bindStartup($root, $this->server, $variable->env_variable, $this->id);
+                try {
+                    $actions->unbind($actor, $this->server, $variable->env_variable);
+                    $this->fail('Nonmutable startup variable was unbound');
+                } catch (AuthorizationException) {
+                    $this->assertTrue(DB::table('bps_startup_bindings')->where('env', $variable->env_variable)->exists());
+                }
+                $actions->unbind($root, $this->server, $variable->env_variable);
+            }
+        }
     }
 
     public function test_picker_offers_only_bindable_secrets(): void

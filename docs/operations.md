@@ -23,7 +23,7 @@ Runtime files are read-only. Applications needing in-place writes must write els
 
 Saves remain pending. Normal start/restart fetches a fresh bundle and recreates Docker state. Protected containers use Docker restart policy no; Wings crash recovery prepares afresh. Running games can survive Panel/Wings outages. New protected starts fail on unavailable TLS, Panel/plugin, node capability, template or value. No stale, empty or plaintext fallback exists.
 
-Backups/downloads/archives/transfers contain templates, excluding runtime values/grants. Restore cannot restore deleted credentials/permissions. Egg/image/reinstall changes invalidate desired state; install scripts receive no values. After daemon restart an old attempt's watcher waits for a new start instead of resetting its sequence.
+Backups/downloads/archives/transfers contain templates, excluding runtime values/grants. Restore cannot restore deleted credentials/permissions. Egg/image/reinstall changes invalidate desired state; install scripts receive no values. After daemon restart an old attempt's watcher waits for a new start instead of resetting its sequence. Managed-file observation expires after 15 seconds without a fresh node counter; the page refreshes every five seconds and shows source observation unavailable while preserving the last delivery revision. A normal start resumes observation. Stopped games and unavailable reporting also make observation expire.
 
 Cleanup requires complete Docker inspection. Live mount sources, labels and in-flight preparations protect attempts; whole-root owners retain everything. Unsafe/missing tmpfs blocks protected starts while ordinary servers may remain available.
 
@@ -31,7 +31,7 @@ Cleanup requires complete Docker inspection. Live mount sources, labels and in-f
 
 Remove bindings, normally start the new empty plan, and confirm its applied receipt before disable/uninstall/rollback. Unbinding alone cannot prove the old game stopped. Native integration management enforces this; manually removing host files is a trusted-operator override.
 
-Interrupted setup blocks delivery. Retry setup to reconcile it. Root host recovery can retire an abandoned unregistered failure after reviewing its current ordinary source:
+Setup commits a metadata-only intent before writing the remote source. Worker termination or a later database failure leaves that durable guard in place; successful plan registration clears it in the same transaction. Setup rejects ambient database transactions so the intent cannot be silently rolled back with its caller. Interrupted setup blocks delivery. Retry setup to reconcile it. Root host recovery can retire an abandoned unregistered failure after reviewing its current ordinary source:
 
 ```sh
 php artisan secrets:retire-setup ROOT_ACTOR_ID SERVER_ID FAILURE_UUID CURRENT_SOURCE_SHA256 --confirm
@@ -50,3 +50,5 @@ Raw Docker logging is disabled. Controlled startup/live output gets streaming li
 Migration cannot rewrite preexisting plaintext defaults, copies, logs or backups. Review and rotate exposed credentials. Shared multi-server secrets remain deferred.
 
 The paired Wings adapter requires plugin reference metadata even for an empty plan. A fresh daemon therefore fails closed if the plugin disappears, rather than mistaking a server for unprotected. After all empty-plan retirements are confirmed, a trusted host operator can switch back to stock Wings or explicitly set system.secrets_integration_required: false before running without the plugin. This YAML-only opt-out is an operator boundary; do not use it to work around a failed protected start.
+
+Non-root startup setup requires both native startup permissions and an egg variable marked user-viewable and user-editable, as well as secret bind permission. Root administrators retain native administrative access to restricted variables and can remove orphaned bindings after an egg change. An invalid setup blocks only that server's fresh bundle; node configuration enumeration remains available for repair and unrelated servers.

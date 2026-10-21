@@ -3,6 +3,7 @@
 namespace ShookEagle\BetterPelicanSecrets\Plans;
 
 use App\Models\Server;
+use Carbon\CarbonImmutable;
 use DomainException;
 use Illuminate\Support\Facades\DB;
 use ShookEagle\BetterPelicanSecrets\Node\ApplicationStatus;
@@ -47,15 +48,22 @@ final class ApplicationStatusService
                 }
             }
         }
+        $observationStale = false;
+        if ($applied && (array) $applied->payload['source_digests']) {
+            $observedAt = DB::table('bps_source_heads')->where('server_id', $server->id)
+                ->where('attempt_id', $applied->attempt_id)->value('node_observed_at');
+            $observedAt = $observedAt ?? $applied->created_at;
+            $observationStale = CarbonImmutable::parse($observedAt)->lessThan(now()->subSeconds(15));
+        }
         $configured = $desired->revision !== '0' || $desired->files || $desired->startup;
-        $pending = $error !== null || $dirty || ($applied ? $desired->revision !== $applied->revision : (bool) $configured);
+        $pending = $observationStale || $error !== null || $dirty || ($applied ? $desired->revision !== $applied->revision : (bool) $configured);
 
         if (DB::table('bps_setup_failures')->where('server_id', $server->id)->exists()) {
             $pending = true;
             $error = 'template_invalid';
         }
 
-        return new ApplicationStatus($desired->revision, $applied?->revision, $pending, $dirty, $terminal?->attempt_id, $error);
+        return new ApplicationStatus($desired->revision, $applied?->revision, $pending, $dirty, $terminal?->attempt_id, $error, $observationStale);
     }
 
     public function recordObservation(ApplicationRecord $record, ?string $nodeSequence = null): void
@@ -84,6 +92,7 @@ final class ApplicationStatusService
 
                 return;
             }
+            $values['node_observed_at'] = now();
             $values['node_sequence'] = $sequence;
             $values['node_record_id'] = $record->id;
         }

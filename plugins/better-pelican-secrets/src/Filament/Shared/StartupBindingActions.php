@@ -26,17 +26,19 @@ final class StartupBindingActions
             throw new AuthorizationException('Startup access denied.');
         }
 
-        return EggVariable::where('egg_id', $server->egg_id)->orderBy('sort')->get()->map(function ($variable) use ($actor, $server) {
-            $row = ServerVariable::where('server_id', $server->id)->where('variable_id', $variable->id)->first();
-            $value = $row ? $row->variable_value : $variable->default_value;
+        return EggVariable::where('egg_id', $server->egg_id)
+            ->when(!app(SecretAuthorizer::class)->isRoot($actor), fn ($query) => $query->where('user_viewable', true)->where('user_editable', true))
+            ->orderBy('sort')->get()->map(function ($variable) use ($actor, $server) {
+                $row = ServerVariable::where('server_id', $server->id)->where('variable_id', $variable->id)->first();
+                $value = $row ? $row->variable_value : $variable->default_value;
 
-            $binding = StartupBinding::where('server_id', $server->id)->where('env', $variable->env_variable)->first();
+                $binding = StartupBinding::where('server_id', $server->id)->where('env', $variable->env_variable)->first();
 
-            return ['env' => $variable->env_variable, 'name' => $variable->name,
-                'bound' => $binding !== null,
-                'can_bind' => !$binding || app(SecretActions::class)->can($actor, Op::Bind, $server, $binding->secret_id),
-                'migration_required' => $value !== '', 'digest' => hash('sha256', $value)];
-        })->all();
+                return ['env' => $variable->env_variable, 'name' => $variable->name,
+                    'bound' => $binding !== null,
+                    'can_bind' => !$binding || app(SecretActions::class)->can($actor, Op::Bind, $server, $binding->secret_id),
+                    'migration_required' => $value !== '', 'digest' => hash('sha256', $value)];
+            })->all();
     }
 
     public function bind(User $actor, Server $server, string $env, string $secretId): DesiredPlan
@@ -52,7 +54,7 @@ final class StartupBindingActions
             if (!$confirmed || !$actor->can('startup.read', $server) || !$actor->can('startup.update', $server)) {
                 throw new DomainException('migration_confirmation_required');
             }
-            $variable = EggVariable::where('egg_id', $server->egg_id)->where('env_variable', $env)->first() ?? throw new DomainException('startup_variable_unknown');
+            $variable = app(BindingService::class)->startupVariable($actor, $server, $env);
             $row = ServerVariable::where('server_id', $server->id)->where('variable_id', $variable->id)->lockForUpdate()->first();
             $value = $row ? $row->variable_value : $variable->default_value;
             if (!hash_equals(hash('sha256', $value), $expectedDigest)) {

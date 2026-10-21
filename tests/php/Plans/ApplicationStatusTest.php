@@ -3,6 +3,7 @@
 require_once dirname(__DIR__) . '/Support/NodeHttpTestCase.php';
 
 use App\Models\Server;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use ShookEagle\BetterPelicanSecrets\Node\FilePlan;
@@ -167,6 +168,42 @@ final class ApplicationStatusTest extends NodeHttpTestCase
         // must reconcile that state even though the node never observed B.
         $source = '{"key":{{secret:RCON}}}';
         $this->postNode('application-report', $this->report('source-dirty'))->assertOk()->assertJsonPath('dirty', false);
+    }
+
+    public function test_source_observation_expires_and_only_a_fresh_counter_recovers_it(): void
+    {
+        $this->apply();
+        $report = $this->report('source-dirty');
+        $this->postNode('application-report', $report)->assertOk();
+        try {
+            CarbonImmutable::setTestNow(now()->addSeconds(16));
+            $status = app(ApplicationStatusService::class)->forServer($this->server);
+            $this->assertTrue($status->pending);
+            $this->assertTrue($status->observationStale);
+            $this->assertFalse($status->dirty);
+            $this->assertSame($this->revision, $status->appliedRevision);
+            $this->postNode('application-report', $this->report())->assertOk()->assertJsonPath('pending', true);
+            $this->postNode('application-report', $report)->assertOk()->assertJsonPath('pending', true);
+            $this->postNode('application-report', $this->report('source-dirty'))->assertOk()->assertJsonPath('pending', false);
+            $this->assertFalse(app(ApplicationStatusService::class)->forServer($this->server)->observationStale);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
+    }
+
+    public function test_panel_source_save_cannot_refresh_node_observation_freshness(): void
+    {
+        $this->apply();
+        $this->postNode('application-report', $this->report('source-dirty'))->assertOk();
+        try {
+            CarbonImmutable::setTestNow(now()->addSeconds(16));
+            app(ApplicationStatusService::class)->recordSourceSave($this->server, $this->fileId, $this->digest);
+            $status = app(ApplicationStatusService::class)->forServer($this->server);
+            $this->assertTrue($status->pending);
+            $this->assertTrue($status->observationStale);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
     }
 
     public function test_failed_restart_is_pending_even_when_desired_equals_last_applied(): void

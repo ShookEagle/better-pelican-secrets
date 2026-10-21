@@ -25,7 +25,10 @@ final class PlanService
             $revision = $row?->revision ?? '0';
             $candidate = $this->referencePlan($server, $revision);
             if (!$row) {
-                return $candidate->files || $candidate->startup ? $this->persist($server, $candidate) : $candidate;
+                // A setup intent without bindings still requires a fresh bundle veto.
+                $requiresCheck = DB::table('bps_setup_failures')->where('server_id', $server->id)->exists();
+
+                return $candidate->files || $candidate->startup || $requiresCheck ? $this->persist($server, $candidate) : $candidate;
             }
             $stored = Protocol::decodePlan($row->payload);
             if ($stored->serverUuid !== $server->uuid || $stored->revision !== $revision) {

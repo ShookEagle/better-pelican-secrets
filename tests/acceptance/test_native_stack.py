@@ -100,6 +100,21 @@ class NativeStackTests(unittest.TestCase):
         s.wait(lambda: s.request("/api/system?secrets=1", check=False).returncode == 0, 60)
         self.assertEqual(old, s.game()["Id"])
         self.assertTrue(self.running())
+        # Reattached containers have no restored watcher/counter. An external
+        # SFTP edit must never leave an indefinite affirmative status claim.
+        changed = b'{"plugin":{"key":{{secret:API_KEY}}},"edited":true}'
+        s.exec(s.proxy, "/workspace/.work/native-tls", "-mode", "sftp-write", "-target", "wings:2022",
+            "-user", "native-developer." + self.meta["short"], "-token", "/fixture/sftp.password",
+            "-path", "config.json", data=changed)
+        s.wait(lambda: s.panel("status")["observationStale"], 30)
+        self.assertTrue(s.panel("status")["pending"])
+        self.assertEqual(old, s.game()["Id"])
+        self.assertEqual(b'{"plugin":{"key":"rotated-fixture"}}',
+            s.run_docker("exec", s.server, "cat", "/home/container/config.json").stdout)
+        original = b'{"plugin":{"key":{{secret:API_KEY}}}}'
+        s.exec(s.proxy, "/workspace/.work/native-tls", "-mode", "sftp-write", "-target", "wings:2022",
+            "-user", "native-developer." + self.meta["short"], "-token", "/fixture/sftp.password",
+            "-path", "config.json", data=original)
         s.power("stop")
         s.panel("schedule-start")
         s.wait(self.running)
@@ -150,6 +165,13 @@ class NativeStackTests(unittest.TestCase):
         s.panel("invalidate-egg")
         s.request("/api/servers/" + s.server + "/power", "POST", {"action": "restart", "wait_seconds": 30})
         s.wait(lambda: not self.running())
+        time.sleep(1)
+        self.assertFalse(self.running())
+        # An incompatible server must not prevent node boot or management.
+        s.run_docker("restart", s.wings["wings"])
+        s.wait(lambda: s.request("/api/system?secrets=1", check=False).returncode == 0, 60)
+        s.wait(lambda: s.request("/api/servers/" + s.server, check=False).returncode == 0, 60)
+        s.request("/api/servers/" + s.server + "/power", "POST", {"action": "start", "wait_seconds": 30}, check=False)
         time.sleep(1)
         self.assertFalse(self.running())
         s.panel("restore-egg")
