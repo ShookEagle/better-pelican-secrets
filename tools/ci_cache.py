@@ -8,8 +8,8 @@ import subprocess
 import dev
 
 ROOT = dev.ROOT
-SUFFIXES = {"php": ["vendor", "node"], "go": ["go-pkg-mod", "root-cachego-build"],
-            "upstream": ["vendor", "node"], "full": ["vendor", "node", "go-pkg-mod", "root-cachego-build"]}
+SUFFIXES = {"php": ["vendor", "node"], "go": ["go-pkg-mod", "root-cache-go-build"],
+            "upstream": ["vendor", "node"], "full": ["vendor", "node", "go-pkg-mod", "root-cache-go-build"]}
 
 
 def main():
@@ -34,7 +34,7 @@ def main():
             present = subprocess.run([dev.DOCKER, "volume", "inspect", volume], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if present.returncode:
                 continue
-            script = 'set -eu; tar -C /data -cf - . | gzip -1 > "/cache/$1.tgz"'
+            script = 'set -eu; set -o pipefail; tar -C /data -cf - . | gzip -1 > "/cache/$1.tgz"'
         label = subprocess.check_output([dev.DOCKER, "volume", "inspect", "--format", '{{index .Labels "better-pelican-secrets.dev"}}', volume], text=True).strip()
         if label != "true":
             raise RuntimeError("Refusing an unlabelled dependency volume: " + volume)
